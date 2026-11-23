@@ -43,6 +43,16 @@ Notes for headless and cloud sessions:
   correct but slow, so never judge frame rate there.
 - For screenshots of work in progress, start `npm run dev` and drive it with Playwright.
 
+## Debug tools
+
+- Address settings: `?debug=1` (overlay), `?paused=1`, `?speed=0.5` (0.05 to 8), plus
+  `env`, `time`, `seed`, `quality`, which are read now and used from Steps 10, 17, 11, 20.
+- Keys: `` ` `` or F2 overlay, P pause, `.` one step while paused, `-` and `=` speed.
+- `window.__sim` (see `sim/src/core/testHook.ts`): `tick`, `time`, `paused`, `timeScale`,
+  `pause()`, `resume()`, `step(n)`, `getState()`, `getStats()`, `params`.
+- For a repeatable screenshot or test: open with `?paused=1`, call `__sim.step(n)`, then
+  read `__sim.getState()` or take the picture.
+
 ## Working rules
 
 - One step per session, and only the step the user names. Work that belongs to a later
@@ -62,6 +72,7 @@ Notes for headless and cloud sessions:
 - Three.js axes, Y up. Heading 0° is north, which is −Z.
 - The simulation runs at a fixed 120 Hz step and is deterministic: same seed and inputs
   give the same flight. Rendering interpolates and never changes simulation state.
+  State changes only inside `Simulation.step`; drawing reads `Simulation.interpolate`.
 - Flight code depends on `ControlFrame`, never on a specific input device.
 - Every environment implements the `Environment` interface and frees everything in
   `dispose()`.

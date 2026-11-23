@@ -24,6 +24,18 @@ npm run dev
 
 Then open http://localhost:5173 in Chrome.
 
+## Debug tools
+
+| Key | What it does |
+|-----|--------------|
+| `` ` `` or F2 | Show or hide the debug overlay (frame rate, frame time, draw calls) |
+| P | Pause or resume |
+| `.` | One simulation step forward while paused |
+| `-` and `=` | Slower or faster |
+
+The same settings can be put in the address, for example
+`http://localhost:5173/?debug=1&paused=1&speed=0.5`.
+
 - [Project plan and roadmap](docs/PLAN.md)
 - [Prompts for building it step by step](docs/PROMPTS.md)
 
