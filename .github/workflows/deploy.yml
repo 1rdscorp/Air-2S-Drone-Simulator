@@ -65,6 +65,9 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - uses: gradle/actions/setup-gradle@v4
+        continue-on-error: true
+
       - name: Build the RC Probe app
         continue-on-error: true
         working-directory: rc-probe

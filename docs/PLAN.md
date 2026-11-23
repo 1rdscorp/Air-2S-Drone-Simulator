@@ -430,7 +430,8 @@ and add a line to the decision log (section 9) if something changed.
 ### Your part
 
 - Step 04, 22–25: run the hardware checklists with the real controller (drone off).
-- Before Step 04 part B and Step 22: create a free DJI developer account and an app key.
+- Before Step 04 part C and Step 22: create a DJI developer account and an app key.
+  Parts A and B of the check need no account.
 - Step 01: allow GitHub Pages for the repository, if you want a link to each version.
 - Any time: say how the flight feels compared with your real Air 2S.
 

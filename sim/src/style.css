@@ -598,13 +598,30 @@ body {
   white-space: nowrap;
 }
 
+/* Smaller windows: the line that says which key comes next no longer fits between the two
+   panels at the bottom. It moves up, under the compass, and the messages follow below it. */
+@media (width < 1180px) {
+  #flight-status {
+    top: 92px;
+    bottom: auto;
+  }
+
+  .hud-toasts {
+    top: 136px;
+  }
+}
+
 /* Narrow windows: the compass moves under the top row so the two do not overlap. */
 @media (width < 900px) {
   .hud-compass {
     top: 52px;
   }
 
-  .hud-toasts {
+  #flight-status {
     top: 134px;
+  }
+
+  .hud-toasts {
+    top: 178px;
   }
 }
