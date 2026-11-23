@@ -178,29 +178,34 @@ First load under 10 MB. Each environment loads in under 5 seconds.
 
 ## 5. Air 2S reference numbers
 
-All of these go into one config file (Step 05) with a comment naming the source.
+All of these live in `sim/src/drone/air2s.config.ts`, each with its source. They were
+checked in Step 05 through web search of DJI's support page, product page and user manual;
+the pages themselves could not be opened from the build session.
 
-| Value | Cine (C) | Normal (N) | Sport (S) | Status |
-|-------|----------|------------|-----------|--------|
-| Max horizontal speed | 5 m/s | 15 m/s | 19 m/s | Checked |
-| Max ascent speed | tune by feel | 6 m/s | 6 m/s | Checked (N, S) |
-| Max descent speed | tune by feel | 6 m/s | 6 m/s | Checked (N, S) |
-| Max yaw rate | ~60°/s | 90°/s | 250°/s | N, S checked; C from memory |
-| Max tilt angle | — | — | 35° | S checked |
+| Value | Cine (C) | Normal (N) | Sport (S) |
+|-------|----------|------------|-----------|
+| Max horizontal speed | 5 m/s | 15 m/s | 19 m/s |
+| Max ascent speed | not published | 6 m/s | 6 m/s |
+| Max descent speed | not published | 6 m/s | 6 m/s |
+| Max yaw rate | 60°/s | 90°/s | 250°/s |
+| Max tilt angle | not published | 25° (35° in strong wind) | 35° |
 
-| Value | Number | Status |
-|-------|--------|--------|
-| Max flight time (no wind) | 31 min | Checked |
-| Max hover time | 30 min | Checked |
-| Max wind resistance | 10.7 m/s | Checked |
-| Take-off weight | 595 g | From memory |
-| Camera field of view | 88° (22 mm equivalent) | From memory |
-| Gimbal tilt range | −90° to 0°, extended to +24° | From memory |
-| Obstacle sensing | forward, backward, upward, downward | From memory |
-| Battery | 3500 mAh, 11.55 V | From memory |
+| Value | Number |
+|-------|--------|
+| Max flight time (no wind) | 31 min |
+| Max hover time | 30 min |
+| Max wind resistance | 10.7 m/s |
+| Take-off weight | 595 g |
+| Size unfolded | 183 × 253 × 77 mm |
+| Camera field of view | 88° (22 mm equivalent, f/2.8) |
+| Gimbal tilt range | −90° to 0°, extended to +24°; up to 100°/s |
+| Obstacle sensing | forward 0.38–23.8 m, backward 0.37–23.4 m, upward 0.34–28.6 m, downward 0.1–8 m; none to the sides |
+| Battery | 3500 mAh, 11.55 V, 40.42 Wh |
 
-"From memory" values must be checked against DJI's official specification page in Step 05
-before they are hard-coded.
+Not published, so tuned by feel and by tests: how quickly the aircraft tilts, accelerates,
+brakes and turns, and the air drag. The drag value was chosen so that the published tilt
+limits and top speeds agree with each other. Cine-mode climb, descent and tilt have to be
+chosen in Step 06.
 
 ---
 
@@ -230,7 +235,7 @@ and add a line to the decision log (section 9) if something changed.
     Gamepad API source; stick modes 1 / 2 / 3; deadzone and expo; on-screen stick monitor.
   - Done when: mapping, deadzone and expo are unit-tested; the monitor follows keyboard
     and gamepad.
-- [ ] **04 — Controller reality check (needs your hardware)**
+- [ ] **04 — Controller reality check (needs your hardware)** — postponed on 2026-11-23; do it before Step 21.
   - Part A, no code, 10 minutes: pair the controller with the PC over Bluetooth and
     look for a game controller; open a gamepad-tester page in the controller's own
     browser; connect by USB and look in Device Manager.
@@ -239,7 +244,7 @@ and add a line to the decision log (section 9) if something changed.
     PASS or FAIL, with a "copy report" button.
   - Done when: the three unknowns in section 3 are answered and the chosen link is
     written in the decision log. Can be postponed, but must be done before Step 21.
-- [ ] **05 — Flight model v1**
+- [x] **05 — Flight model v1**
   - Build: drone state (position, velocity, attitude, rates); flight controller that
     turns sticks into target velocity, climb rate and yaw rate; tilt response, drag,
     braking on stick release, hover hold; Air 2S config file with verified numbers;
@@ -440,6 +445,18 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 03 — A held key moves its stick out over about 0.2 s and back in about 0.13 s — full deflection in an instant is hard to fly, and a short tap now gives a small correction.
 - 2026-11-23 — step 03 — Defaults: expo 0.3, gamepad deadzone 0.08, keyboard deadzone 0. New address settings `stickmode`, `expo`, `sticks`; the stick mode is set in the address until the settings screen exists (Step 34).
 - 2026-11-23 — step 03 — `ControlSource` gained `label` and `deadzone`; buttons so far are rth, pause (flight pause), record, shutter, c1, c2.
+- 2026-11-23 — step 04 — Postponed at the owner's request — it needs the real controller and does not block flying; it must be done before Step 21.
+- 2026-11-23 — step 05 — The Air 2S numbers were checked through web search of DJI's pages, not by reading the pages directly — the build session could not open dji.com. Take-off weight, tilt limits, yaw rates, gimbal, sensing, lens and battery are now confirmed; see section 5.
+- 2026-11-23 — step 05 — Flight model: the sticks ask for a speed, a climb rate and a turn rate; the controller turns the speed error into a tilt, the aircraft takes a moment to reach that tilt, tilt accelerates and air drag slows — this is how a camera drone behaves, and it gives visible tilt, lag and braking for free.
+- 2026-11-23 — step 05 — Air drag is 0.0185 × speed² — with it, the published 25° (Normal) and 35° (Sport) tilt limits give top speeds just above the published 15 and 19 m/s, so the numbers agree with each other.
+- 2026-11-23 — step 05 — Resulting Normal-mode behaviour: 0 to 10 m/s in 2.8 s, 23° nose-down at 15 m/s, stop from 15 m/s in about 3 s and 20 m. A fast turn at speed slows the aircraft, because the tilt limit cannot supply the sideways force. Change `NORMAL_TUNING` if this does not feel right.
+- 2026-11-23 — step 05 — Hover hold: after braking below 0.2 m/s the aircraft fixes its hover point and returns to it if moved; the same for height below 0.15 m/s — needed for zero drift now and for wind in Step 19.
+- 2026-11-23 — step 05 — Only Normal mode flies; the 1 / 2 / 3 keys are read but change nothing until Step 06. The aircraft starts hovering at 2 m. Touching the ground simply stops it and throttle up lifts off again, until Step 06 (take-off and landing) and Step 10 (crashes).
+- 2026-11-23 — step 05 — A simple follow camera and a stand-in drone shape were added now, ahead of Step 07 — without them the flight could not be seen or tried.
+- 2026-11-23 — step 05 — The ground is now 4 km wide with distant haze, and the sun's shadow area follows the aircraft — so there is room to fly for a few minutes.
+- 2026-11-23 — step 05 — The stick monitor moved to the bottom-right corner — at the bottom centre it covered the aircraft.
+- 2026-11-23 — step 05 — Fixed a Step 03 fault: a key pressed and released between two display frames was missed, so a quick tap on 1 / 2 / 3 or a button could do nothing. Taps are now remembered until the next read.
+- 2026-11-23 — step 05 — Added Backspace (back to the start) and, for tests, `__sim.setControls()` and `__sim.reset()`.
 
 ---
 

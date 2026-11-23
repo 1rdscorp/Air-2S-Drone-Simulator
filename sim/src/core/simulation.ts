@@ -1,48 +1,49 @@
-/** Everything the simulation knows at one moment. Plain numbers only, so it can be copied and compared. */
-export interface SimState {
-  /** Rotation of the reference cube around the vertical axis, in radians. */
-  markerYaw: number;
-}
+import {
+  blendPose,
+  copyDroneState,
+  createDroneState,
+  type DronePose,
+  type DroneState,
+} from '../drone/droneState';
+import { stepDrone } from '../drone/flightModel';
+import type { ControlFrame } from '../input/types';
 
-/** How fast the reference cube turns, in radians per second. */
-export const MARKER_YAW_RATE = 0.5;
-
-function copyState(target: SimState, source: SimState): void {
-  target.markerYaw = source.markerYaw;
-}
+/** Everything the simulation knows at one moment. For now that is the aircraft. */
+export type SimState = DroneState;
 
 /**
- * The simulated world. It only changes inside `step`, by a fixed amount of time, so the
- * same sequence of steps always produces the same state.
- *
- * For now the world is just the turning reference cube.
- * TODO(step-05): replace the cube with the drone state and flight model.
+ * The simulated world. It only changes inside `step`, by a fixed amount of time and from
+ * the controls it is given, so the same sequence of steps and controls always produces
+ * the same flight.
  */
 export class Simulation {
-  private readonly previous: SimState = { markerYaw: 0 };
-  private readonly current: SimState = { markerYaw: 0 };
-  private readonly blended: SimState = { markerYaw: 0 };
+  private readonly previous: DroneState = createDroneState();
+  private readonly current: DroneState = createDroneState();
+  private readonly blended: DronePose = { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0 };
 
-  /** Advance by one fixed step of `dt` seconds. */
-  step(dt: number): void {
-    copyState(this.previous, this.current);
-    this.current.markerYaw += MARKER_YAW_RATE * dt;
+  /** Advance by one fixed step of `dt` seconds, flying with the given controls. */
+  step(dt: number, controls: ControlFrame): void {
+    copyDroneState(this.previous, this.current);
+    stepDrone(this.current, controls, dt);
   }
 
   /**
-   * State to draw, blended between the previous step (alpha 0) and the current one
-   * (alpha 1). Does not change the simulation. The returned object is reused on the
-   * next call, so read it and do not keep it.
+   * Where to draw the aircraft, blended between the previous step (alpha 0) and the
+   * current one (alpha 1). Does not change the simulation. The returned object is reused
+   * on the next call, so read it and do not keep it.
    */
-  interpolate(alpha: number): Readonly<SimState> {
-    const t = Math.min(Math.max(alpha, 0), 1);
-    this.blended.markerYaw =
-      this.previous.markerYaw + (this.current.markerYaw - this.previous.markerYaw) * t;
-    return this.blended;
+  interpolate(alpha: number): Readonly<DronePose> {
+    return blendPose(this.blended, this.previous, this.current, alpha);
   }
 
   /** A copy of the current state, safe to keep and compare. */
   snapshot(): SimState {
     return { ...this.current };
+  }
+
+  /** Puts the aircraft back where it started. */
+  reset(): void {
+    copyDroneState(this.current, createDroneState());
+    copyDroneState(this.previous, this.current);
   }
 }

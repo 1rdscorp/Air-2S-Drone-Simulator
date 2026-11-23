@@ -2,12 +2,21 @@ import type { ControlFrame, StickMode, StickPositions } from '../input/types';
 import type { SimParams } from './params';
 import type { SimState } from './simulation';
 
-/** Simulation state plus the loop counters, as plain data. */
+/** Simulation state plus the loop counters and a few handy derived values, as plain data. */
 export interface SimSnapshot extends SimState {
   tick: number;
   /** Simulated time in seconds. */
   time: number;
+  /** Speed over the ground in m/s. */
+  speed: number;
+  /** Heading as a compass bearing, 0 (north) up to 360 degrees. */
+  headingDeg: number;
 }
+
+/** Stick positions a test can set directly. Anything left out is centred. */
+export type ScriptedControls = Partial<
+  Pick<ControlFrame, 'roll' | 'pitch' | 'yaw' | 'throttle' | 'gimbal' | 'mode' | 'connected'>
+>;
 
 export interface SimStatsSnapshot {
   fps: number;
@@ -51,6 +60,13 @@ export interface SimHook {
   resume(): void;
   /** Runs exactly `count` simulation steps (default 1) and draws a frame. Works while paused. */
   step(count?: number): void;
+  /** Puts the aircraft back where it started. */
+  reset(): void;
+  /**
+   * Flies with these stick positions instead of the pilot's, until called with `null`.
+   * Values go straight to the flight controller: no stick mode, deadzone or expo.
+   */
+  setControls(controls: ScriptedControls | null): void;
   /** A copy of the current simulation state. */
   getState(): SimSnapshot;
   /** Frame-rate and renderer numbers from the most recent frames. */

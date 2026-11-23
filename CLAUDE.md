@@ -51,9 +51,12 @@ Notes for headless and cloud sessions:
   `?stickmode=1|2|3`, `?expo=0..1`, `?sticks=0` (hide the stick monitor), plus `env`,
   `time`, `seed`, `quality`, which are read now and used from Steps 10, 17, 11, 20.
 - Keys: `` ` `` or F2 overlay, I stick monitor, P pause, `.` one step while paused, `-`
-  and `=` speed.
+  and `=` speed, Backspace puts the aircraft back at the start.
 - `window.__sim` (see `sim/src/core/testHook.ts`): `tick`, `time`, `paused`, `timeScale`,
-  `pause()`, `resume()`, `step(n)`, `getState()`, `getStats()`, `getInput()`, `params`.
+  `pause()`, `resume()`, `step(n)`, `reset()`, `setControls({...} | null)`, `getState()`,
+  `getStats()`, `getInput()`, `params`.
+- For an exact flight test: open with `?paused=1`, call `__sim.setControls({ pitch: 1 })`,
+  then `__sim.step(n)` and read `__sim.getState()`. See `sim/e2e/flight.spec.ts`.
 - Flight keys and gamepad buttons are defined in `sim/src/input/keyboardSource.ts` and
   `gamepadSource.ts`. Keep the Controls tables in `README.md` in step with them, and keep
   new flight keys clear of the debug keys above.
@@ -87,7 +90,13 @@ Notes for headless and cloud sessions:
   deadzone and expo.
 - Every environment implements the `Environment` interface and frees everything in
   `dispose()`.
-- All Air 2S numbers live in one config file, each with a comment naming its source.
+- All Air 2S numbers live in `sim/src/drone/air2s.config.ts`: published values with their
+  source in `AIR_2S_SPECS`, tuned values (not published) separately. Flight feel is
+  changed there, never in `flightModel.ts`.
+- The aircraft state is `DroneState` in `sim/src/drone/droneState.ts`. `y` is the height of
+  its underside, so 0 means standing on the ground. Heading 0 is north and grows turning
+  right; it is not wrapped at 360°. Positive pitch is nose down, positive roll is right
+  side down.
 - World content is procedural and seeded. No DJI logos, artwork or copied screen designs.
 - Do not draw long lines with line geometry (`GridHelper`, `Line`, `LineSegments`): the
   software renderer misplaces lines that pass behind the camera. Use textures or meshes.

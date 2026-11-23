@@ -22,6 +22,8 @@ export interface DebugActions {
   /** Advance one simulation step. Only called while paused. */
   stepOnce(): void;
   changeSpeed(direction: 1 | -1): void;
+  /** Put the aircraft back where it started. */
+  resetFlight(): void;
   isPaused(): boolean;
 }
 
@@ -34,6 +36,7 @@ export interface DebugActions {
  *   P         pause / resume
  *   .         one step forward (while paused; hold to keep stepping)
  *   − and =   slower / faster
+ *   Backspace put the aircraft back at the start
  *
  * @returns a function that removes the shortcuts again
  */
@@ -70,6 +73,11 @@ export function bindDebugKeys(target: Window, actions: DebugActions): () => void
       case 'Period':
         if (actions.isPaused()) {
           actions.stepOnce();
+        }
+        break;
+      case 'Backspace':
+        if (!event.repeat) {
+          actions.resetFlight();
         }
         break;
       case 'Minus':

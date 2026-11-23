@@ -85,10 +85,10 @@ body {
   --sm-line: rgb(255 255 255 / 22%);
   --sm-accent: #ffd166;
 
+  /* Bottom-right corner: the middle of the screen belongs to the aircraft. */
   position: fixed;
-  left: 50%;
+  right: 14px;
   bottom: 14px;
-  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;

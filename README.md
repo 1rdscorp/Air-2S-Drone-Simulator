@@ -33,8 +33,10 @@ Then open http://localhost:5173 in Chrome.
 
 ## Controls
 
-There is no drone to fly yet (that is Step 05). For now the stick monitor at the bottom of
-the screen shows what the simulator reads from your keyboard or gamepad.
+The aircraft starts hovering 2 m above the ground, and the camera follows it from behind.
+For now it is a simple stand-in shape and it always flies in Normal mode (up to 15 m/s);
+take-off, landing and the Cine and Sport modes come in the next steps. The stick monitor
+in the bottom-right corner shows what the simulator reads from your keyboard or gamepad.
 
 The keyboard acts as two sticks. In stick mode 2, the usual default:
 
@@ -45,12 +47,8 @@ The keyboard acts as two sticks. In stick mode 2, the usual default:
 | Arrow up / down | Right stick up / down: fly forward / backward |
 | Arrow left / right | Right stick left / right: fly left / right |
 | R / F | Gimbal up / down |
-| 1 / 2 / 3 | Cine / Normal / Sport mode |
-| H | Return to home |
-| Space | Flight pause |
-| C | Record |
-| B | Photo |
-| Z / X | Custom buttons C1 / C2 |
+| 1 / 2 / 3 | Cine / Normal / Sport mode (shown, but no effect on flight yet) |
+| H, Space, C, B, Z, X | Return to home, flight pause, record, photo, C1, C2 (shown, but no effect yet) |
 
 A standard game controller (Xbox, PlayStation and similar) works too. Press any button on
 it once so the browser can see it.
@@ -75,6 +73,7 @@ To change which stick does what, add the stick mode to the address:
 | P | Pause or resume |
 | `.` | One simulation step forward while paused |
 | `-` and `=` | Slower or faster |
+| Backspace | Put the aircraft back at the start |
 
 The same settings can be put in the address, for example
 `http://localhost:5173/?debug=1&paused=1&speed=0.5`.

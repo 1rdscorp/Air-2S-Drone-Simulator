@@ -61,6 +61,11 @@ export class KeyboardSource implements ControlSource {
   readonly deadzone = 0;
 
   private readonly held = new Set<string>();
+  /**
+   * Keys pressed since the last poll. A quick tap can begin and end between two polls;
+   * without this it would never be seen.
+   */
+  private readonly tapped = new Set<string>();
   private readonly sticks: Record<StickAxis, number> = {
     leftX: 0,
     leftY: 0,
@@ -78,6 +83,7 @@ export class KeyboardSource implements ControlSource {
   keyDown(code: string): void {
     if (this.handles(code)) {
       this.held.add(code);
+      this.tapped.add(code);
     }
   }
 
@@ -88,6 +94,7 @@ export class KeyboardSource implements ControlSource {
   /** Lets go of every key. Used when the window loses focus, so no key gets stuck. */
   releaseAll(): void {
     this.held.clear();
+    this.tapped.clear();
   }
 
   /**
@@ -133,6 +140,10 @@ export class KeyboardSource implements ControlSource {
     this.lastPollMs = now;
     const seconds = Math.min(Math.max(elapsed, 0), MAX_POLL_GAP_SECONDS);
 
+    // Everything held now, plus anything tapped since the last poll.
+    const active = new Set([...this.held, ...this.tapped]);
+    this.tapped.clear();
+
     const targets: Record<StickAxis, number> = {
       leftX: 0,
       leftY: 0,
@@ -140,7 +151,7 @@ export class KeyboardSource implements ControlSource {
       rightY: 0,
       gimbal: 0,
     };
-    for (const code of this.held) {
+    for (const code of active) {
       const key = AXIS_KEYS[code];
       if (key) {
         targets[key.axis] += key.direction; // opposite keys cancel out
@@ -158,7 +169,7 @@ export class KeyboardSource implements ControlSource {
 
     let mode: FlightMode | null = null;
     const buttons: Partial<Record<ButtonId, boolean>> = {};
-    for (const code of this.held) {
+    for (const code of active) {
       mode = MODE_KEYS[code] ?? mode;
       const button = BUTTON_KEYS[code];
       if (button) {

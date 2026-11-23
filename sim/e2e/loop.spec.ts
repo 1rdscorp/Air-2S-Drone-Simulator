@@ -41,18 +41,19 @@ test.describe('game loop', () => {
 
     expect(state?.tick).toBe(120);
     expect(state?.time).toBe(1);
-    expect(state?.markerYaw).toBeCloseTo(0.5, 10);
   });
 
   test('reaches the same state however the steps are grouped', async ({ page }) => {
     await open(page, '?paused=1');
     const allAtOnce = await page.evaluate(() => {
+      window.__sim?.setControls({ pitch: 1, roll: 0.3, yaw: 0.5, throttle: 0.2 });
       window.__sim?.step(600);
       return window.__sim?.getState();
     });
 
     await open(page, '?paused=1');
     const inPieces = await page.evaluate(() => {
+      window.__sim?.setControls({ pitch: 1, roll: 0.3, yaw: 0.5, throttle: 0.2 });
       for (const count of [1, 7, 100, 250, 41, 201]) {
         window.__sim?.step(count);
       }
@@ -60,6 +61,7 @@ test.describe('game loop', () => {
     });
 
     expect(allAtOnce?.tick).toBe(600);
+    expect(allAtOnce?.speed).toBeGreaterThan(5);
     expect(inPieces).toEqual(allAtOnce);
   });
 
