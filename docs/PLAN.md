@@ -209,7 +209,7 @@ and add a line to the decision log (section 9) if something changed.
 
 ### Milestone 0 — Foundation
 
-- [ ] **01 — Project scaffold**
+- [x] **01 — Project scaffold**
   - Build: `sim/` with Vite, TypeScript (strict), Three.js; ESLint, Prettier, Vitest;
     one Playwright smoke test; GitHub Actions for lint, type-check, tests and build;
     a GitHub Pages deploy workflow so every merged step has a link to try.
@@ -421,6 +421,11 @@ and add a line to the decision log (section 9) if something changed.
 Add one line per decision: date — step — what was decided — why.
 
 - 2026-11-23 — plan — Web app + Android bridge over BLE chosen as the starting design — see section 2 and 3.
+- 2026-11-23 — step 01 — TypeScript is pinned to 6.0, not 7 — the lint tooling (typescript-eslint) does not support 7 yet.
+- 2026-11-23 — step 01 — The ground grid is a texture, not line geometry — headless Chromium's software renderer misplaces long lines that pass behind the camera, so screenshots would be wrong.
+- 2026-11-23 — step 01 — CI runs on every push to any branch; the smoke test runs against the production build — the same files that get deployed.
+- 2026-11-23 — step 01 — `@playwright/test` is pinned to 1.63.0 — it matches the browser preinstalled in Claude cloud sessions.
+- 2026-11-23 — step 01 — The Pages deploy workflow is written but has not run — it needs a `main` branch and Pages switched on (Settings → Pages → Source: GitHub Actions).
 
 ---
 
