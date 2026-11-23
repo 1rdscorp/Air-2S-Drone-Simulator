@@ -1,14 +1,18 @@
 import './style.css';
 import { ACESFilmicToneMapping, PerspectiveCamera, WebGLRenderer } from 'three';
-import { createBaseScene } from './core/baseScene';
+import { placeFollowCamera } from './camera/followCamera';
+import { aimSunAt, createBaseScene } from './core/baseScene';
 import { FrameStats } from './core/frameStats';
 import { GameLoop } from './core/gameLoop';
 import { parseParams } from './core/params';
 import { Simulation } from './core/simulation';
-import { installTestHook } from './core/testHook';
+import { installTestHook, type ScriptedControls } from './core/testHook';
+import { headingDegrees, horizontalSpeed } from './drone/droneState';
+import { applyPose, createDroneStandIn } from './drone/standInMesh';
 import { GamepadSource } from './input/gamepadSource';
 import { InputManager } from './input/inputManager';
 import { KeyboardSource } from './input/keyboardSource';
+import { type ControlFrame, neutralFrame } from './input/types';
 import { bindDebugKeys, nextTimeScale } from './ui/debugControls';
 import { type DebugInfo, DebugOverlay, formatTimeScale } from './ui/debugOverlay';
 import { StickMonitor } from './ui/stickMonitor';
@@ -47,11 +51,11 @@ function start(): void {
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
 
-  const { scene, marker } = createBaseScene();
+  const { scene, sun } = createBaseScene();
+  const drone = createDroneStandIn();
+  scene.add(drone);
 
-  const camera = new PerspectiveCamera(55, 1, 0.1, 2000);
-  camera.position.set(7, 4, 9);
-  camera.lookAt(0, 0.8, 0);
+  const camera = new PerspectiveCamera(55, 1, 0.1, 5000);
 
   const resize = (): void => {
     const width = canvas.clientWidth;
@@ -68,7 +72,6 @@ function start(): void {
   resize();
 
   // Controls. Read once per display frame; the stick monitor shows what was read.
-  // TODO(step-05): hand `input.frame` to the flight controller in every simulation step.
   const keyboard = new KeyboardSource();
   keyboard.attach(window);
   const gamepad = new GamepadSource(() => navigator.getGamepads());
@@ -79,14 +82,21 @@ function start(): void {
   const stickMonitor = new StickMonitor(requireElement('#stick-monitor'));
   stickMonitor.visible = params.sticks;
 
+  /** Controls set by a test through `window.__sim`; they replace the pilot's while set. */
+  let scripted: ControlFrame | null = null;
+  const currentControls = (): ControlFrame => scripted ?? input.frame;
+
   // Simulation and loop. The simulation only changes in `step`; `render` only reads it.
   const sim = new Simulation();
   const loop = new GameLoop({
     step: (dt) => {
-      sim.step(dt);
+      sim.step(dt, currentControls());
     },
     render: (alpha) => {
-      marker.rotation.y = sim.interpolate(alpha).markerYaw;
+      const pose = sim.interpolate(alpha);
+      applyPose(drone, pose);
+      placeFollowCamera(camera, pose);
+      aimSunAt(sun, pose.x, pose.y, pose.z);
       renderer.render(scene, camera);
     },
   });
@@ -98,19 +108,29 @@ function start(): void {
   const overlay = new DebugOverlay(requireElement('#debug-overlay'));
   overlay.visible = params.debug;
 
-  const debugInfo = (): DebugInfo => ({
-    fps: stats.fps,
-    frameMs: stats.frameMs,
-    maxFrameMs: stats.maxFrameMs,
-    drawCalls: renderer.info.render.calls,
-    triangles: renderer.info.render.triangles,
-    tick: loop.tick,
-    simTime: loop.simTime,
-    timeScale: loop.timeScale,
-    paused: loop.paused,
-    inputSource: input.activeSource.label,
-    params,
-  });
+  const debugInfo = (): DebugInfo => {
+    const state = sim.snapshot();
+    return {
+      fps: stats.fps,
+      frameMs: stats.frameMs,
+      maxFrameMs: stats.maxFrameMs,
+      drawCalls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      tick: loop.tick,
+      simTime: loop.simTime,
+      timeScale: loop.timeScale,
+      paused: loop.paused,
+      inputSource: scripted ? 'Test script' : input.activeSource.label,
+      drone: {
+        height: state.y,
+        speed: horizontalSpeed(state),
+        climbRate: state.vy,
+        headingDeg: headingDegrees(state.heading),
+        onGround: state.onGround,
+      },
+      params,
+    };
+  };
 
   /** Shows "Paused" or a speed other than 1×, so a still or slow picture is never a mystery. */
   const refreshStatus = (): void => {
@@ -129,6 +149,12 @@ function start(): void {
 
   const drawNow = (): void => {
     loop.frame(0);
+  };
+
+  const resetFlight = (): void => {
+    sim.reset();
+    drawNow();
+    overlay.refreshSoon();
   };
 
   bindDebugKeys(window, {
@@ -150,6 +176,7 @@ function start(): void {
       loop.timeScale = nextTimeScale(loop.timeScale, direction);
       refreshStatus();
     },
+    resetFlight,
     isPaused: () => loop.paused,
   });
 
@@ -185,17 +212,27 @@ function start(): void {
       drawNow();
       refreshStatus();
     },
-    getState: () => ({ tick: loop.tick, time: loop.simTime, ...sim.snapshot() }),
-    getStats: () => {
-      const info = debugInfo();
+    reset: resetFlight,
+    setControls: (controls: ScriptedControls | null) => {
+      scripted = controls ? { ...neutralFrame(0, 'N', true), ...controls } : null;
+    },
+    getState: () => {
+      const state = sim.snapshot();
       return {
-        fps: info.fps,
-        frameMs: info.frameMs,
-        maxFrameMs: info.maxFrameMs,
-        drawCalls: info.drawCalls,
-        triangles: info.triangles,
+        tick: loop.tick,
+        time: loop.simTime,
+        ...state,
+        speed: horizontalSpeed(state),
+        headingDeg: headingDegrees(state.heading),
       };
     },
+    getStats: () => ({
+      fps: stats.fps,
+      frameMs: stats.frameMs,
+      maxFrameMs: stats.maxFrameMs,
+      drawCalls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+    }),
     getInput: () => ({
       source: input.activeSource.id,
       stickMode: input.settings.stickMode,

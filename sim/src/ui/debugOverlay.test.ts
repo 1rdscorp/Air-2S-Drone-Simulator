@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS } from '../core/params';
-import { type DebugInfo, formatDebugText, formatTimeScale } from './debugOverlay';
+import { type DebugInfo, formatDebugText, formatDrone, formatTimeScale } from './debugOverlay';
 
 const INFO: DebugInfo = {
   fps: 59.94,
@@ -13,6 +13,7 @@ const INFO: DebugInfo = {
   timeScale: 1,
   paused: false,
   inputSource: 'Keyboard',
+  drone: { height: 12.04, speed: 14.96, climbRate: 0, headingDeg: 45.2, onGround: false },
   params: DEFAULT_PARAMS,
 };
 
@@ -66,6 +67,36 @@ describe('formatDebugText', () => {
       .map((line) => line.search(/\s{2}\S/));
 
     expect(new Set(valueColumns).size).toBe(1);
+  });
+});
+
+describe('formatDrone', () => {
+  it('shows height, speed, climb rate and heading', () => {
+    expect(formatDrone(INFO.drone)).toBe('12.0 m · 15.0 m/s · climb +0.0 m/s · 045°');
+    expect(formatDebugText(INFO)).toMatch(/Drone\s+12\.0 m · 15\.0 m\/s/);
+  });
+
+  it('marks climbing and descending clearly, and never shows minus zero', () => {
+    const base = INFO.drone;
+
+    expect(formatDrone({ ...base, climbRate: 6 })).toContain('climb +6.0 m/s');
+    expect(formatDrone({ ...base, climbRate: -6 })).toContain('climb −6.0 m/s');
+    expect(formatDrone({ ...base, climbRate: -0.001 })).toContain('climb +0.0 m/s');
+  });
+
+  it('shows the heading as three digits from 000 to 359', () => {
+    const base = INFO.drone;
+
+    expect(formatDrone({ ...base, headingDeg: 0 })).toContain('000°');
+    expect(formatDrone({ ...base, headingDeg: 7.4 })).toContain('007°');
+    expect(formatDrone({ ...base, headingDeg: 359.7 })).toContain('000°');
+    expect(formatDrone({ ...base, headingDeg: 270 })).toContain('270°');
+  });
+
+  it('says when the aircraft stands on the ground', () => {
+    const landed = { height: 0, speed: 0, climbRate: 0, headingDeg: 0, onGround: true };
+
+    expect(formatDrone(landed)).toBe('0.0 m · 0.0 m/s · climb +0.0 m/s · 000° · on the ground');
   });
 });
 

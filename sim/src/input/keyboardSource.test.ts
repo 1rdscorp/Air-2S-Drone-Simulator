@@ -161,6 +161,46 @@ describe('KeyboardSource', () => {
     });
   });
 
+  it('still sees a key that was pressed and released between two polls', () => {
+    const { source, clock } = setup();
+
+    source.keyDown('Digit3');
+    source.keyUp('Digit3');
+    source.keyDown('KeyH');
+    source.keyUp('KeyH');
+    clock.ms += 200; // one slow display frame later
+    const reading = source.poll(clock.ms);
+
+    expect(reading.mode).toBe('S');
+    expect(reading.buttons).toEqual({ rth: true });
+  });
+
+  it('counts such a quick tap only once', () => {
+    const { source, clock } = setup();
+    source.keyDown('Digit3');
+    source.keyUp('Digit3');
+    source.keyDown('KeyH');
+    source.keyUp('KeyH');
+    source.poll((clock.ms += 16));
+
+    const next = source.poll((clock.ms += 16));
+
+    expect(next.mode).toBeNull();
+    expect(next.buttons).toEqual({});
+  });
+
+  it('gives a small nudge for a stick key tapped between two polls', () => {
+    const { source, clock } = setup();
+    source.keyDown('ArrowRight');
+    source.keyUp('ArrowRight');
+
+    const nudge = source.poll((clock.ms += 16)).rightX;
+    expect(nudge).toBeGreaterThan(0);
+    expect(nudge).toBeLessThan(0.2);
+
+    expect(hold(source, clock, 0.3).rightX).toBe(0);
+  });
+
   it('lets go of everything when asked, for example when the window loses focus', () => {
     const { source, clock } = setup();
     source.keyDown('KeyW');
