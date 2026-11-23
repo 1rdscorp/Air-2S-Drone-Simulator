@@ -6,7 +6,14 @@ Bluetooth. Environments: mountains, city, ocean and beach, with day / night and 
 The project is built in small numbered steps. So far it shows a first lit 3D scene; the
 drone, the environments and the controller link come in later steps.
 
-## Run it
+## Try it online
+
+https://1rdscorp.github.io/Air-2S-Drone-Simulator/
+
+The site is rebuilt automatically from the `main` branch, so it shows the steps that
+have been merged.
+
+## Run it on your computer
 
 You need [Node.js](https://nodejs.org) 22 or newer.
 
@@ -23,6 +30,18 @@ npm run dev
 ```
 
 Then open http://localhost:5173 in Chrome.
+
+## Debug tools
+
+| Key | What it does |
+|-----|--------------|
+| `` ` `` or F2 | Show or hide the debug overlay (frame rate, frame time, draw calls) |
+| P | Pause or resume |
+| `.` | One simulation step forward while paused |
+| `-` and `=` | Slower or faster |
+
+The same settings can be put in the address, for example
+`http://localhost:5173/?debug=1&paused=1&speed=0.5`.
 
 - [Project plan and roadmap](docs/PLAN.md)
 - [Prompts for building it step by step](docs/PROMPTS.md)

@@ -215,7 +215,7 @@ and add a line to the decision log (section 9) if something changed.
     a GitHub Pages deploy workflow so every merged step has a link to try.
   - Done when: the dev server shows a lit scene with a ground grid; CI is green;
     `CLAUDE.md` lists the real commands.
-- [ ] **02 — Game loop and debug tools**
+- [x] **02 — Game loop and debug tools**
   - Build: fixed 120 Hz simulation step with interpolated rendering; pause and time
     scale; debug overlay (FPS, frame time, draw calls); `window.__sim` test hook; URL
     parameters.
@@ -426,6 +426,11 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 01 — CI runs on every push to any branch; the smoke test runs against the production build — the same files that get deployed.
 - 2026-11-23 — step 01 — `@playwright/test` is pinned to 1.63.0 — it matches the browser preinstalled in Claude cloud sessions.
 - 2026-11-23 — step 01 — The Pages deploy workflow is written but has not run — it needs a `main` branch and Pages switched on (Settings → Pages → Source: GitHub Actions).
+- 2026-11-23 — step 02 — A display frame longer than 0.25 s is cut — after a stall the simulation slows down instead of running hundreds of steps to catch up.
+- 2026-11-23 — step 02 — Besides `env`, `time`, `seed` and `quality`, the address also takes `debug`, `paused` and `speed` — they make screenshots and tests repeatable. The first four are read and checked now but only used from their own steps (10, 17, 11, 20).
+- 2026-11-23 — step 02 — `window.__sim` is also present in the production build — the browser tests run against that build.
+- 2026-11-23 — step 02 — Until Step 05 the simulated world is only the turning reference cube — it gives the loop something real to step and interpolate.
+- 2026-11-23 — publish — GitHub Pages is switched on and the deploy from `main` works; the site is https://1rdscorp.github.io/Air-2S-Drone-Simulator/ — a step appears there once it is merged into `main`.
 
 ---
 
