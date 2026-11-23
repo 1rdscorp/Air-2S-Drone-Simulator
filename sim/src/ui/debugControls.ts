@@ -17,6 +17,7 @@ export function nextTimeScale(current: number, direction: 1 | -1): number {
 
 export interface DebugActions {
   toggleOverlay(): void;
+  toggleStickMonitor(): void;
   togglePause(): void;
   /** Advance one simulation step. Only called while paused. */
   stepOnce(): void;
@@ -29,6 +30,7 @@ export interface DebugActions {
  * (`event.code`), so they are the same on every keyboard layout.
  *
  *   ` or F2   show / hide the overlay
+ *   I         show / hide the stick monitor
  *   P         pause / resume
  *   .         one step forward (while paused; hold to keep stepping)
  *   − and =   slower / faster
@@ -53,6 +55,11 @@ export function bindDebugKeys(target: Window, actions: DebugActions): () => void
       case 'F2':
         if (!event.repeat) {
           actions.toggleOverlay();
+        }
+        break;
+      case 'KeyI':
+        if (!event.repeat) {
+          actions.toggleStickMonitor();
         }
         break;
       case 'KeyP':

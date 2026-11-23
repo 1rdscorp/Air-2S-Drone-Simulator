@@ -1,3 +1,4 @@
+import type { ControlFrame, StickMode, StickPositions } from '../input/types';
 import type { SimParams } from './params';
 import type { SimState } from './simulation';
 
@@ -14,6 +15,20 @@ export interface SimStatsSnapshot {
   maxFrameMs: number;
   drawCalls: number;
   triangles: number;
+}
+
+/** What the input layer is producing right now. */
+export interface InputSnapshot {
+  /** Id of the control source in use, for example 'keyboard' or 'gamepad'. */
+  source: string;
+  stickMode: StickMode;
+  expo: number;
+  /** The controls the flight controller receives. */
+  frame: ControlFrame;
+  /** Stick positions as the device reports them. */
+  raw: StickPositions;
+  /** Stick positions after deadzone and expo. */
+  shaped: StickPositions;
 }
 
 /**
@@ -40,6 +55,8 @@ export interface SimHook {
   getState(): SimSnapshot;
   /** Frame-rate and renderer numbers from the most recent frames. */
   getStats(): SimStatsSnapshot;
+  /** A copy of the current controls and which device they come from. */
+  getInput(): InputSnapshot;
 }
 
 declare global {

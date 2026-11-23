@@ -136,8 +136,10 @@ interface ControlFrame {
 }
 interface ControlSource {
   readonly id: string;                         // 'keyboard' | 'gamepad' | 'ble-bridge' | 'mock'
+  readonly label: string;                      // name shown to the pilot
   readonly connected: boolean;
-  poll(now: number): RawControls | null;       // raw sticks before mapping
+  readonly deadzone: number;                   // stick travel around the centre that counts as zero
+  poll(now: number): RawControls | null;       // the physical sticks, before mapping
 }
 
 // world/ — what every environment must provide
@@ -223,7 +225,7 @@ and add a line to the decision log (section 9) if something changed.
 
 ### Milestone 1 — First flight (keyboard and gamepad)
 
-- [ ] **03 — Input layer**
+- [x] **03 — Input layer**
   - Build: `ControlFrame`, `ControlSource`, input manager; keyboard source; standard
     Gamepad API source; stick modes 1 / 2 / 3; deadzone and expo; on-screen stick monitor.
   - Done when: mapping, deadzone and expo are unit-tested; the monitor follows keyboard
@@ -431,6 +433,13 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 02 — `window.__sim` is also present in the production build — the browser tests run against that build.
 - 2026-11-23 — step 02 — Until Step 05 the simulated world is only the turning reference cube — it gives the loop something real to step and interpolate.
 - 2026-11-23 — publish — GitHub Pages is switched on and the deploy from `main` works; the site is https://1rdscorp.github.io/Air-2S-Drone-Simulator/ — a step appears there once it is merged into `main`.
+- 2026-11-23 — step 03 — A control source reports the two physical sticks; the input manager applies the stick mode — so the keyboard is two sticks too (W A S D left, arrows right) and stick modes 1 / 2 / 3 work the same for every device.
+- 2026-11-23 — step 03 — Controls are read once per display frame, not once per simulation step — browsers only refresh gamepads once per frame, and the stick monitor keeps working while the simulation is paused.
+- 2026-11-23 — step 03 — Another device takes over only when it is used while the active one is idle; a lost device gives `connected: false` with centred sticks and no silent fall-back — so signal loss can be simulated properly in Step 24.
+- 2026-11-23 — step 03 — The flight mode is remembered by the input manager (start: Normal) — keyboard and gamepad have no three-position switch, they only select a mode.
+- 2026-11-23 — step 03 — A held key moves its stick out over about 0.2 s and back in about 0.13 s — full deflection in an instant is hard to fly, and a short tap now gives a small correction.
+- 2026-11-23 — step 03 — Defaults: expo 0.3, gamepad deadzone 0.08, keyboard deadzone 0. New address settings `stickmode`, `expo`, `sticks`; the stick mode is set in the address until the settings screen exists (Step 34).
+- 2026-11-23 — step 03 — `ControlSource` gained `label` and `deadzone`; buttons so far are rth, pause (flight pause), record, shutter, c1, c2.
 
 ---
 

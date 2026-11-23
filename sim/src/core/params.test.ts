@@ -66,6 +66,34 @@ describe('parseParams', () => {
     expect(parseParams('?speed=8').params.speed).toBe(8);
   });
 
+  it('reads the control settings', () => {
+    const { params, warnings } = parseParams('?stickmode=3&expo=0.6&sticks=0');
+
+    expect(params.stickMode).toBe(3);
+    expect(params.expo).toBe(0.6);
+    expect(params.sticks).toBe(false);
+    expect(warnings).toEqual([]);
+  });
+
+  it('uses stick mode 2 with the stick monitor shown unless told otherwise', () => {
+    const { params } = parseParams('');
+
+    expect(params.stickMode).toBe(2);
+    expect(params.sticks).toBe(true);
+    expect(params.expo).toBeGreaterThanOrEqual(0);
+    expect(params.expo).toBeLessThanOrEqual(1);
+  });
+
+  it('rejects stick modes and expo values that do not exist', () => {
+    for (const query of ['?stickmode=4', '?stickmode=0', '?stickmode=two', '?stickmode=2.0']) {
+      const { params, warnings } = parseParams(query);
+      expect(params.stickMode, query).toBe(2);
+      expect(warnings, query).toHaveLength(1);
+    }
+    expect(parseParams('?expo=1.5').params.expo).toBe(DEFAULT_PARAMS.expo);
+    expect(parseParams('?expo=-0.1').params.expo).toBe(DEFAULT_PARAMS.expo);
+  });
+
   it('ignores settings it does not know', () => {
     const { params, warnings } = parseParams('?utm_source=x&foo=bar');
 

@@ -1,3 +1,5 @@
+import { DEFAULT_INPUT_SETTINGS } from '../input/inputManager';
+import { STICK_MODES, type StickMode } from '../input/types';
 import { MAX_TIME_SCALE, MIN_TIME_SCALE } from './gameLoop';
 
 /** Environment names from docs/PLAN.md. TODO(step-10): take these from the world module. */
@@ -10,7 +12,7 @@ export type QualityId = (typeof QUALITY_IDS)[number];
 
 /**
  * Settings read from the page address, for example
- * `?env=city&time=21.5&seed=7&quality=low&debug=1&paused=1&speed=0.5`.
+ * `?env=city&time=21.5&seed=7&quality=low&debug=1&paused=1&speed=0.5&stickmode=2`.
  * They make any view repeatable, which screenshots and tests rely on.
  */
 export interface SimParams {
@@ -28,6 +30,12 @@ export interface SimParams {
   paused: boolean;
   /** Simulation speed relative to real time. */
   speed: number;
+  /** Which stick does what: 1, 2 or 3. Address name: `stickmode`. */
+  stickMode: StickMode;
+  /** Stick expo curve strength, 0 to 1. */
+  expo: number;
+  /** Show the stick monitor at start. */
+  sticks: boolean;
 }
 
 export const DEFAULT_PARAMS: Readonly<SimParams> = {
@@ -38,6 +46,9 @@ export const DEFAULT_PARAMS: Readonly<SimParams> = {
   debug: false,
   paused: false,
   speed: 1,
+  stickMode: DEFAULT_INPUT_SETTINGS.stickMode,
+  expo: DEFAULT_INPUT_SETTINGS.expo,
+  sticks: true,
 };
 
 export interface ParsedParams {
@@ -118,6 +129,18 @@ export function parseParams(search: string): ParsedParams {
   params.speed = numberBetween('speed', MIN_TIME_SCALE, MAX_TIME_SCALE) ?? DEFAULT_PARAMS.speed;
   params.debug = flag('debug', DEFAULT_PARAMS.debug);
   params.paused = flag('paused', DEFAULT_PARAMS.paused);
+
+  const stickModeRaw = query.get('stickmode');
+  if (stickModeRaw !== null) {
+    const match = STICK_MODES.find((mode) => String(mode) === stickModeRaw.trim());
+    if (match === undefined) {
+      reject('stickmode', stickModeRaw, `one of ${STICK_MODES.join(', ')}`);
+    } else {
+      params.stickMode = match;
+    }
+  }
+  params.expo = numberBetween('expo', 0, 1) ?? DEFAULT_PARAMS.expo;
+  params.sticks = flag('sticks', DEFAULT_PARAMS.sticks);
 
   return { params, warnings };
 }

@@ -6,8 +6,12 @@ import { GameLoop } from './core/gameLoop';
 import { parseParams } from './core/params';
 import { Simulation } from './core/simulation';
 import { installTestHook } from './core/testHook';
+import { GamepadSource } from './input/gamepadSource';
+import { InputManager } from './input/inputManager';
+import { KeyboardSource } from './input/keyboardSource';
 import { bindDebugKeys, nextTimeScale } from './ui/debugControls';
 import { type DebugInfo, DebugOverlay, formatTimeScale } from './ui/debugOverlay';
+import { StickMonitor } from './ui/stickMonitor';
 
 const MAX_PIXEL_RATIO = 2;
 
@@ -63,6 +67,18 @@ function start(): void {
   new ResizeObserver(resize).observe(canvas);
   resize();
 
+  // Controls. Read once per display frame; the stick monitor shows what was read.
+  // TODO(step-05): hand `input.frame` to the flight controller in every simulation step.
+  const keyboard = new KeyboardSource();
+  keyboard.attach(window);
+  const gamepad = new GamepadSource(() => navigator.getGamepads());
+  const input = new InputManager([keyboard, gamepad], {
+    stickMode: params.stickMode,
+    expo: params.expo,
+  });
+  const stickMonitor = new StickMonitor(requireElement('#stick-monitor'));
+  stickMonitor.visible = params.sticks;
+
   // Simulation and loop. The simulation only changes in `step`; `render` only reads it.
   const sim = new Simulation();
   const loop = new GameLoop({
@@ -92,6 +108,7 @@ function start(): void {
     simTime: loop.simTime,
     timeScale: loop.timeScale,
     paused: loop.paused,
+    inputSource: input.activeSource.label,
     params,
   });
 
@@ -117,6 +134,9 @@ function start(): void {
   bindDebugKeys(window, {
     toggleOverlay: () => {
       overlay.toggle();
+    },
+    toggleStickMonitor: () => {
+      stickMonitor.toggle();
     },
     togglePause: () => {
       loop.paused = !loop.paused;
@@ -176,6 +196,14 @@ function start(): void {
         triangles: info.triangles,
       };
     },
+    getInput: () => ({
+      source: input.activeSource.id,
+      stickMode: input.settings.stickMode,
+      expo: input.settings.expo,
+      frame: { ...input.frame, buttons: { ...input.frame.buttons } },
+      raw: { ...input.raw },
+      shaped: { ...input.shaped },
+    }),
   });
 
   let lastFrameMs: number | null = null;
@@ -184,7 +212,9 @@ function start(): void {
     lastFrameMs = timeMs;
 
     stats.record(elapsed);
+    input.update(timeMs);
     loop.frame(elapsed);
+    stickMonitor.update(input);
     overlay.update(elapsed, debugInfo);
 
     // Lets tests wait until something has really been drawn.
