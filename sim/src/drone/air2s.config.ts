@@ -76,9 +76,14 @@ export const AIR_2S_SPECS = {
     maxTiltSpeed: 100 * DEG,
   },
 
-  /** Camera lens. [support] FOV 88 deg, 22 mm equivalent, f/2.8. Used from Step 08. */
+  /**
+   * Camera lens. [support] FOV 88 deg, 22 mm equivalent, f/2.8.
+   * The 88 deg is measured across the diagonal of the full 3:2 photo.
+   */
   camera: {
     fieldOfView: 88 * DEG,
+    /** Width : height of the full sensor picture that the field of view refers to. */
+    sensorAspect: 3 / 2,
     focalLengthEquivalentMm: 22,
   },
 
@@ -228,6 +233,18 @@ export const MODE_TUNING: Record<FlightMode, FlightTuning> = {
     ...HOLD_TUNING,
   },
 };
+
+/** How the camera gimbal moves. Tuned; only the top speed is published. */
+export const GIMBAL_TUNING = {
+  /** Tilt speed with the dial fully turned, in rad/s. */
+  dialSpeed: 50 * DEG,
+  /** How long the gimbal takes to pick up and lose speed, in seconds. Longer is softer. */
+  smoothingSeconds: 0.12,
+  /** Recentre and look-down shortcuts: how firmly they close in on the target, in 1/s. */
+  shortcutGain: 6,
+  /** Recentre and look-down shortcuts: their top speed, the published maximum. */
+  shortcutSpeed: AIR_2S_SPECS.gimbal.maxTiltSpeed,
+} as const;
 
 /**
  * Take-off, landing and motor start / stop. Chosen to match how the aircraft is

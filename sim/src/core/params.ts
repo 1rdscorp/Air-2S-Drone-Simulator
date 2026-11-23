@@ -39,6 +39,8 @@ export interface SimParams {
   sticks: boolean;
   /** View at start: chase, fpv (the drone's own camera) or free. */
   camera: CameraMode;
+  /** Lets the camera gimbal tilt above level, up to +24°. Address name: `gimbalup`. */
+  gimbalUpward: boolean;
 }
 
 export const DEFAULT_PARAMS: Readonly<SimParams> = {
@@ -53,6 +55,7 @@ export const DEFAULT_PARAMS: Readonly<SimParams> = {
   expo: DEFAULT_INPUT_SETTINGS.expo,
   sticks: true,
   camera: 'chase',
+  gimbalUpward: false,
 };
 
 export interface ParsedParams {
@@ -146,6 +149,7 @@ export function parseParams(search: string): ParsedParams {
   params.expo = numberBetween('expo', 0, 1) ?? DEFAULT_PARAMS.expo;
   params.sticks = flag('sticks', DEFAULT_PARAMS.sticks);
   params.camera = oneOf('camera', CAMERA_MODES) ?? DEFAULT_PARAMS.camera;
+  params.gimbalUpward = flag('gimbalup', DEFAULT_PARAMS.gimbalUpward);
 
   return { params, warnings };
 }

@@ -1,4 +1,4 @@
-import { Box3, type Object3D, Vector3 } from 'three';
+import { Box3, type Object3D, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { AIR_2S_SPECS } from './air2s.config';
 import {
@@ -15,15 +15,27 @@ import { type DronePose, FLIGHT_PHASES } from './droneState';
 const DEG = Math.PI / 180;
 
 function pose(change: Partial<DronePose> = {}): DronePose {
-  return { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, ...change };
+  return { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, gimbalTilt: 0, ...change };
 }
 
 /** Where a point of the aircraft ends up in the world. */
 function worldPoint(change: Partial<DronePose>, local: Vector3): Vector3 {
-  const { root } = createDroneModel();
-  applyPose(root, pose(change));
-  root.updateMatrixWorld(true);
-  return local.clone().applyMatrix4(root.matrixWorld);
+  const model = createDroneModel();
+  applyPose(model, pose(change));
+  model.root.updateMatrixWorld(true);
+  return local.clone().applyMatrix4(model.root.matrixWorld);
+}
+
+/** Which way the camera pod looks, and which way its top points, in the world. */
+function podDirections(change: Partial<DronePose>): { forward: Vector3; up: Vector3 } {
+  const model = createDroneModel();
+  applyPose(model, pose(change));
+  model.root.updateMatrixWorld(true);
+  const turn = model.gimbal.getWorldQuaternion(new Quaternion());
+  return {
+    forward: new Vector3(0, 0, -1).applyQuaternion(turn),
+    up: new Vector3(0, 1, 0).applyQuaternion(turn),
+  };
 }
 
 function named(root: Object3D, name: string): Object3D[] {
@@ -188,10 +200,10 @@ describe('animateRotors', () => {
 
 describe('applyPose', () => {
   it('moves the model to the position of the aircraft', () => {
-    const { root } = createDroneModel();
-    applyPose(root, pose({ x: 5, y: 12, z: -30 }));
+    const model = createDroneModel();
+    applyPose(model, pose({ x: 5, y: 12, z: -30 }));
 
-    expect(root.position.toArray()).toEqual([5, 12, -30]);
+    expect(model.root.position.toArray()).toEqual([5, 12, -30]);
   });
 
   it('points the nose north at heading 0 and east at heading 90', () => {
@@ -215,6 +227,38 @@ describe('applyPose', () => {
     expect(nose.x).toBeGreaterThan(0.9);
     expect(nose.y).toBeLessThan(-0.3);
     expect(nose.z).toBeCloseTo(0, 9);
+  });
+});
+
+describe('camera pod', () => {
+  it('looks forward and sits upright on a level aircraft', () => {
+    const { forward, up } = podDirections({});
+
+    expect(forward.distanceTo(new Vector3(0, 0, -1))).toBeLessThan(1e-9);
+    expect(up.distanceTo(new Vector3(0, 1, 0))).toBeLessThan(1e-9);
+  });
+
+  it('stays level when the aircraft tilts', () => {
+    const { forward, up } = podDirections({ pitch: 25 * DEG, roll: -30 * DEG });
+
+    expect(forward.distanceTo(new Vector3(0, 0, -1))).toBeLessThan(1e-9);
+    expect(up.distanceTo(new Vector3(0, 1, 0))).toBeLessThan(1e-9);
+  });
+
+  it('turns with the heading of the aircraft', () => {
+    const { forward } = podDirections({ heading: 90 * DEG, roll: 20 * DEG });
+
+    expect(forward.distanceTo(new Vector3(1, 0, 0))).toBeLessThan(1e-9);
+  });
+
+  it('tilts down with the gimbal, whatever the aircraft is doing', () => {
+    const { forward } = podDirections({ gimbalTilt: -90 * DEG, pitch: 30 * DEG, roll: 15 * DEG });
+
+    expect(forward.distanceTo(new Vector3(0, -1, 0))).toBeLessThan(1e-9);
+
+    const half = podDirections({ gimbalTilt: -45 * DEG, heading: 180 * DEG }).forward;
+    expect(half.y).toBeCloseTo(-Math.SQRT1_2, 9);
+    expect(half.z).toBeCloseTo(Math.SQRT1_2, 9); // facing south
   });
 });
 

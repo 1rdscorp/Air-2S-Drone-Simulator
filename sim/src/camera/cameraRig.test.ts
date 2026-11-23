@@ -8,14 +8,17 @@ import {
   CameraRig,
   CHASE_DISTANCE_M,
   CHASE_HEIGHT_M,
+  droneCameraHorizontalFov,
+  droneCameraVerticalFovDeg,
   FREE_LIMITS,
   FREE_START,
+  VIEW_FOV_DEG,
 } from './cameraRig';
 
 const DEG = Math.PI / 180;
 
 function pose(change: Partial<DronePose> = {}): DronePose {
-  return { x: 0, y: 10, z: 0, heading: 0, pitch: 0, roll: 0, ...change };
+  return { x: 0, y: 10, z: 0, heading: 0, pitch: 0, roll: 0, gimbalTilt: 0, ...change };
 }
 
 function viewDirection(camera: PerspectiveCamera): Vector3 {
@@ -176,11 +179,83 @@ describe('drone camera (first person view)', () => {
     expect(viewDirection(camera).x).toBeCloseTo(1, 9);
   });
 
+  it('tilts with the gimbal: down to straight down, without rolling', () => {
+    for (const tilt of [-15, -45, -90, 24]) {
+      const camera = place(new CameraRig('fpv'), { gimbalTilt: tilt * DEG, roll: 30 * DEG });
+
+      expect(Math.asin(viewDirection(camera).y) / DEG, `tilt ${tilt}`).toBeCloseTo(tilt, 6);
+      expect(horizonTilt(camera), `tilt ${tilt}`).toBeLessThan(1e-9);
+    }
+  });
+
   it('can draw things closer than the other views, because it sits among the propellers', () => {
     const fpv = place(new CameraRig('fpv'));
     const chase = place(new CameraRig('chase'));
 
     expect(fpv.near).toBeLessThan(chase.near);
+  });
+});
+
+describe('field of view', () => {
+  it('gives the drone camera the published lens: 88° across the diagonal of a 3:2 picture', () => {
+    const halfWidth = Math.tan(droneCameraHorizontalFov() / 2);
+    const halfHeight = halfWidth / (3 / 2);
+    const diagonal = 2 * Math.atan(Math.hypot(halfWidth, halfHeight));
+
+    expect(diagonal / DEG).toBeCloseTo(88, 9);
+  });
+
+  it('agrees with the published 22 mm equivalent focal length', () => {
+    // A 22 mm lens on a 36 mm wide frame sees 2 * atan(18 / 22) from side to side.
+    const from22mm = 2 * Math.atan(18 / 22);
+
+    expect(Math.abs(droneCameraHorizontalFov() - from22mm) / DEG).toBeLessThan(1.5);
+  });
+
+  it('is about 49° from top to bottom on a 16:9 screen', () => {
+    expect(droneCameraVerticalFovDeg(16 / 9)).toBeGreaterThan(48);
+    expect(droneCameraVerticalFovDeg(16 / 9)).toBeLessThan(50);
+  });
+
+  it('keeps the width of the view the same on any screen shape', () => {
+    for (const aspect of [4 / 3, 16 / 9, 21 / 9]) {
+      const camera = new PerspectiveCamera(50, aspect, 0.1, 100);
+      new CameraRig('fpv').update(camera, pose(), 0);
+      const halfWidth = Math.tan((camera.fov * DEG) / 2) * aspect;
+
+      expect(2 * Math.atan(halfWidth), `aspect ${aspect}`).toBeCloseTo(
+        droneCameraHorizontalFov(),
+        9,
+      );
+    }
+  });
+
+  it('uses the lens only for the drone camera; the other views keep their own', () => {
+    const rig = new CameraRig('chase');
+    const camera = new PerspectiveCamera(VIEW_FOV_DEG, 16 / 9, 0.1, 100);
+
+    rig.update(camera, pose(), 0);
+    expect(camera.fov).toBe(VIEW_FOV_DEG);
+
+    rig.mode = 'fpv';
+    rig.update(camera, pose(), 0);
+    expect(camera.fov).toBeCloseTo(droneCameraVerticalFovDeg(16 / 9), 9);
+
+    rig.mode = 'free';
+    rig.update(camera, pose(), 0);
+    expect(camera.fov).toBe(VIEW_FOV_DEG);
+  });
+
+  it('follows the window when its shape changes', () => {
+    const rig = new CameraRig('fpv');
+    const camera = new PerspectiveCamera(50, 16 / 9, 0.1, 100);
+    rig.update(camera, pose(), 0);
+    const wide = camera.fov;
+
+    camera.aspect = 4 / 3;
+    rig.update(camera, pose(), 0);
+
+    expect(camera.fov).toBeGreaterThan(wide);
   });
 });
 

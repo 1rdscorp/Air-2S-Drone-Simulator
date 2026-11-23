@@ -6,6 +6,7 @@ import {
   Group,
   Mesh,
   MeshStandardMaterial,
+  Quaternion,
   Vector3,
 } from 'three';
 import { AIR_2S_SPECS } from './air2s.config';
@@ -22,7 +23,7 @@ import type { DronePose, FlightPhase } from './droneState';
 export interface DroneModel {
   /** The whole aircraft. Move and turn it with `applyPose`. */
   root: Group;
-  /** The camera pod under the nose. TODO(step-08): tilt it with the gimbal. */
+  /** The camera pod under the nose. `applyPose` keeps it level and tilts it with the gimbal. */
   gimbal: Group;
   rotors: Rotor[];
 }
@@ -205,14 +206,26 @@ export function createDroneModel(): DroneModel {
   return model;
 }
 
+const bodyTurn = new Quaternion();
+const cameraTurn = new Quaternion();
+const cameraAngles = new Euler(0, 0, 0, 'YXZ');
+
 /**
- * Moves and turns the aircraft shape to match the simulated aircraft.
+ * Moves and turns the aircraft shape to match the simulated aircraft, and points its
+ * camera pod: level against the horizon whatever the aircraft does, tilted only by the
+ * gimbal.
+ *
  * Three.js turns counter-clockwise for positive angles, the aircraft's heading and tilts
  * are the other way round, hence the minus signs.
  */
-export function applyPose(root: Group, pose: Readonly<DronePose>): void {
-  root.position.set(pose.x, pose.y, pose.z);
-  root.rotation.set(-pose.pitch, -pose.heading, -pose.roll);
+export function applyPose(model: DroneModel, pose: Readonly<DronePose>): void {
+  model.root.position.set(pose.x, pose.y, pose.z);
+  model.root.rotation.set(-pose.pitch, -pose.heading, -pose.roll);
+
+  // The pod sits on the tilting body, so undo the body's tilt and then add the gimbal's.
+  bodyTurn.setFromEuler(model.root.rotation).invert();
+  cameraTurn.setFromEuler(cameraAngles.set(pose.gimbalTilt, -pose.heading, 0));
+  model.gimbal.quaternion.copy(bodyTurn).multiply(cameraTurn);
 }
 
 const lensRotation = new Euler(0, 0, 0, 'YXZ');

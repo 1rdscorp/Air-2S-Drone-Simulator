@@ -28,6 +28,8 @@ export interface DebugInfo {
     /** Compass heading, 0 to 360 degrees. */
     headingDeg: number;
     onGround: boolean;
+    /** Camera tilt against the horizon in degrees; negative looks down. */
+    gimbalDeg: number;
   };
   params: Readonly<SimParams>;
 }
@@ -56,6 +58,15 @@ export function formatDrone(drone: DebugInfo['drone']): string {
   return parts.join(' · ');
 }
 
+/** Camera tilt for display, for example "−45°" (looking down) or "+10°". Level is "0°". */
+export function formatGimbal(degrees: number): string {
+  const rounded = Math.round(degrees);
+  if (rounded === 0) {
+    return '0°';
+  }
+  return `${rounded > 0 ? '+' : '−'}${Math.abs(rounded)}°`;
+}
+
 /** The overlay text. A pure function, so it can be tested without a browser. */
 export function formatDebugText(info: DebugInfo): string {
   const { params } = info;
@@ -68,7 +79,7 @@ export function formatDebugText(info: DebugInfo): string {
     ['Speed', `${formatTimeScale(info.timeScale)}${info.paused ? ' · paused' : ''}`],
     ['Drone', formatDrone(info.drone)],
     ['Input', `${info.inputSource} · stick mode ${params.stickMode}`],
-    ['Camera', info.camera],
+    ['Camera', `${info.camera} · gimbal ${formatGimbal(info.drone.gimbalDeg)}`],
     ['Env', params.env ?? '–'],
     ['Time of day', params.timeOfDay === null ? '–' : `${params.timeOfDay} h`],
     ['Seed', String(params.seed)],

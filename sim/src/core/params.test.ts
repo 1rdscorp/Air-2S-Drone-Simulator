@@ -104,6 +104,13 @@ describe('parseParams', () => {
     expect(warnings).toHaveLength(1);
   });
 
+  it('reads the upward gimbal setting, which is off unless asked for', () => {
+    expect(parseParams('').params.gimbalUpward).toBe(false);
+    expect(parseParams('?gimbalup=1').params.gimbalUpward).toBe(true);
+    expect(parseParams('?gimbalup').params.gimbalUpward).toBe(true);
+    expect(parseParams('?gimbalup=0').params.gimbalUpward).toBe(false);
+  });
+
   it('ignores settings it does not know', () => {
     const { params, warnings } = parseParams('?utm_source=x&foo=bar');
 

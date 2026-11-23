@@ -1,6 +1,12 @@
 import './style.css';
 import { ACESFilmicToneMapping, PerspectiveCamera, Vector3, WebGLRenderer } from 'three';
-import { CAMERA_MODE_NAMES, cameraLabelText, type CameraMode, CameraRig } from './camera/cameraRig';
+import {
+  CAMERA_MODE_NAMES,
+  cameraLabelText,
+  type CameraMode,
+  CameraRig,
+  VIEW_FOV_DEG,
+} from './camera/cameraRig';
 import { aimSunAt, createBaseScene } from './core/baseScene';
 import { FrameStats } from './core/frameStats';
 import { GameLoop } from './core/gameLoop';
@@ -59,7 +65,7 @@ function start(): void {
   const drone = createDroneModel();
   scene.add(drone.root);
 
-  const camera = new PerspectiveCamera(55, 1, 0.1, 5000);
+  const camera = new PerspectiveCamera(VIEW_FOV_DEG, 1, 0.1, 5000);
   const cameraRig = new CameraRig(params.camera);
   bindFreeCameraControls(canvas, cameraRig);
 
@@ -100,7 +106,7 @@ function start(): void {
   const currentControls = (): ControlFrame => scripted ?? input.frame;
 
   // Simulation and loop. The simulation only changes in `step`; `render` only reads it.
-  const sim = new Simulation();
+  const sim = new Simulation({ gimbalUpward: params.gimbalUpward });
   /** Real time since the previous display frame; the chase camera eases with it. */
   let frameSeconds = 0;
   const loop = new GameLoop({
@@ -109,7 +115,7 @@ function start(): void {
     },
     render: (alpha) => {
       const pose = sim.interpolate(alpha);
-      applyPose(drone.root, pose);
+      applyPose(drone, pose);
       animateRotors(drone, sim.phase, loop.simTime);
       // The drone camera looks out of the camera pod, so the pod itself must not be drawn.
       drone.gimbal.visible = cameraRig.mode !== 'fpv';
@@ -147,6 +153,7 @@ function start(): void {
         climbRate: state.vy,
         headingDeg: headingDegrees(state.heading),
         onGround: state.onGround,
+        gimbalDeg: (state.gimbalTilt * 180) / Math.PI,
       },
       params,
     };
