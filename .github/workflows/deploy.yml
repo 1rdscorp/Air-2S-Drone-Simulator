@@ -1,10 +1,24 @@
 name: Deploy to GitHub Pages
 
 # Publishes the simulator so every merged step has a link to try.
-# One-time setup: repository Settings -> Pages -> Source: "GitHub Actions".
+#
+# Two jobs can publish to the site:
+#   - this workflow, which publishes the built simulator, and
+#   - GitHub's own "pages build and deployment" job, which publishes the repository's
+#     README. It runs on every push to main while the repository setting
+#     Settings -> Pages -> Source is "Deploy from a branch".
+# Whichever finishes last is what visitors see. So this workflow runs a second time
+# whenever GitHub's job has finished, which makes the simulator the last thing published.
+#
+# With Source set to "GitHub Actions", GitHub's job does not exist and the push trigger
+# alone does the work.
 on:
   push:
     branches: [main]
+  workflow_run:
+    # GitHub has used both spellings for its job; a name that does not exist is ignored.
+    workflows: ['pages build and deployment', 'pages-build-deployment']
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -18,12 +32,15 @@ concurrency:
 
 jobs:
   build:
+    # After GitHub's job, publish only if that job ran for main.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
       run:
         working-directory: sim
     steps:
+      # For every trigger this is the newest commit on main.
       - uses: actions/checkout@v5
 
       - uses: actions/setup-node@v5
