@@ -457,6 +457,7 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 05 — The stick monitor moved to the bottom-right corner — at the bottom centre it covered the aircraft.
 - 2026-11-23 — step 05 — Fixed a Step 03 fault: a key pressed and released between two display frames was missed, so a quick tap on 1 / 2 / 3 or a button could do nothing. Taps are now remembered until the next read.
 - 2026-11-23 — step 05 — Added Backspace (back to the start) and, for tests, `__sim.setControls()` and `__sim.reset()`.
+- 2026-11-23 — publish — The deploy workflow now also runs each time GitHub's own "pages build and deployment" job has finished — while the Pages setting is "Deploy from a branch", that job publishes the README on every merge and sometimes landed after our deploy, so the site showed text instead of the simulator. Setting Pages → Source to "GitHub Actions" would remove GitHub's job; the workflow works either way.
 
 ---
 

@@ -20,7 +20,9 @@ in its decision log (section 9).
 - `docs/` — plan, prompts, protocol, setup guides.
 - `.github/workflows/` — `ci.yml` (every push) and `deploy.yml` (GitHub Pages, from `main`).
   The published site is https://1rdscorp.github.io/Air-2S-Drone-Simulator/ and shows what
-  is merged into `main`.
+  is merged into `main`. `deploy.yml` runs on the push and again after GitHub's own
+  "pages build and deployment" job, which would otherwise replace the simulator with the
+  README. If the site shows text instead of the simulator, start `deploy.yml` by hand.
 
 ## Commands
 
