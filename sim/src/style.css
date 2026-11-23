@@ -80,6 +80,154 @@ body {
   display: none;
 }
 
+#stick-monitor {
+  --sm-pad: 92px;
+  --sm-line: rgb(255 255 255 / 22%);
+  --sm-accent: #ffd166;
+
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-radius: 10px;
+  background: rgb(13 17 23 / 78%);
+  color: #e6edf3;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  user-select: none;
+}
+
+#stick-monitor[hidden] {
+  display: none;
+}
+
+.sm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.sm-stick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.sm-pad {
+  --x: 0;
+  --y: 0;
+  --raw-x: 0;
+  --raw-y: 0;
+
+  position: relative;
+  width: var(--sm-pad);
+  height: var(--sm-pad);
+  border: 1px solid var(--sm-line);
+  border-radius: 8px;
+  /* Cross-hair through the centre. */
+  background:
+    linear-gradient(var(--sm-line), var(--sm-line)) center / 1px 100% no-repeat,
+    linear-gradient(var(--sm-line), var(--sm-line)) center / 100% 1px no-repeat;
+}
+
+.sm-ring,
+.sm-dot {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* The stick as the device reports it. */
+.sm-ring {
+  left: calc(50% + var(--raw-x) * 42%);
+  top: calc(50% - var(--raw-y) * 42%);
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgb(255 255 255 / 45%);
+}
+
+/* The value after deadzone and expo: what flies the drone. */
+.sm-dot {
+  left: calc(50% + var(--x) * 42%);
+  top: calc(50% - var(--y) * 42%);
+  width: 10px;
+  height: 10px;
+  background: var(--sm-accent);
+}
+
+.sm-gimbal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.sm-gimbal-track {
+  position: relative;
+  width: 10px;
+  height: var(--sm-pad);
+  border: 1px solid var(--sm-line);
+  border-radius: 6px;
+}
+
+.sm-gimbal-thumb {
+  --y: 0;
+
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--y) * 44%);
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--sm-accent);
+  transform: translate(-50%, -50%);
+}
+
+.sm-caption {
+  color: rgb(230 237 243 / 75%);
+  white-space: nowrap;
+}
+
+.sm-buttons {
+  display: flex;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sm-button {
+  padding: 2px 7px;
+  border: 1px solid var(--sm-line);
+  border-radius: 999px;
+  color: rgb(230 237 243 / 60%);
+}
+
+.sm-button.is-on {
+  border-color: var(--sm-accent);
+  background: var(--sm-accent);
+  color: #0d1117;
+  font-weight: 600;
+}
+
+.sm-status {
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#stick-monitor.is-disconnected .sm-status {
+  color: #ff8a80;
+}
+
 #message {
   position: fixed;
   inset: 0;

@@ -11,6 +11,8 @@ export interface DebugInfo {
   simTime: number;
   timeScale: number;
   paused: boolean;
+  /** Name of the control source in use. */
+  inputSource: string;
   params: Readonly<SimParams>;
 }
 
@@ -32,6 +34,7 @@ export function formatDebugText(info: DebugInfo): string {
     ['Triangles', info.triangles.toLocaleString('en-US')],
     ['Sim', `${SIM_HZ} Hz · tick ${info.tick} · ${info.simTime.toFixed(2)} s`],
     ['Speed', `${formatTimeScale(info.timeScale)}${info.paused ? ' · paused' : ''}`],
+    ['Input', `${info.inputSource} · stick mode ${params.stickMode}`],
     ['Env', params.env ?? '–'],
     ['Time of day', params.timeOfDay === null ? '–' : `${params.timeOfDay} h`],
     ['Seed', String(params.seed)],
@@ -39,7 +42,7 @@ export function formatDebugText(info: DebugInfo): string {
   ];
   const labelWidth = Math.max(...rows.map(([label]) => label.length));
   const lines = rows.map(([label, value]) => `${label.padEnd(labelWidth)}  ${value}`);
-  lines.push('', '`/F2 overlay · P pause · . step · − = speed');
+  lines.push('', '`/F2 overlay · I sticks · P pause · . step · − = speed');
   return lines.join('\n');
 }
 

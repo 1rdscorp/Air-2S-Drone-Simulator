@@ -12,6 +12,7 @@ const INFO: DebugInfo = {
   simTime: 10,
   timeScale: 1,
   paused: false,
+  inputSource: 'Keyboard',
   params: DEFAULT_PARAMS,
 };
 
@@ -31,6 +32,10 @@ describe('formatDebugText', () => {
     expect(text).toContain('120 Hz · tick 1200 · 10.00 s');
     expect(text).toMatch(/Speed\s+1×/);
     expect(text).not.toContain('paused');
+  });
+
+  it('shows which control device is in use and the stick mode', () => {
+    expect(formatDebugText(INFO)).toMatch(/Input\s+Keyboard · stick mode 2/);
   });
 
   it('says when the simulation is paused', () => {

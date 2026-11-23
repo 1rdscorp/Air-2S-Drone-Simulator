@@ -47,11 +47,18 @@ Notes for headless and cloud sessions:
 
 ## Debug tools
 
-- Address settings: `?debug=1` (overlay), `?paused=1`, `?speed=0.5` (0.05 to 8), plus
-  `env`, `time`, `seed`, `quality`, which are read now and used from Steps 10, 17, 11, 20.
-- Keys: `` ` `` or F2 overlay, P pause, `.` one step while paused, `-` and `=` speed.
+- Address settings: `?debug=1` (overlay), `?paused=1`, `?speed=0.5` (0.05 to 8),
+  `?stickmode=1|2|3`, `?expo=0..1`, `?sticks=0` (hide the stick monitor), plus `env`,
+  `time`, `seed`, `quality`, which are read now and used from Steps 10, 17, 11, 20.
+- Keys: `` ` `` or F2 overlay, I stick monitor, P pause, `.` one step while paused, `-`
+  and `=` speed.
 - `window.__sim` (see `sim/src/core/testHook.ts`): `tick`, `time`, `paused`, `timeScale`,
-  `pause()`, `resume()`, `step(n)`, `getState()`, `getStats()`, `params`.
+  `pause()`, `resume()`, `step(n)`, `getState()`, `getStats()`, `getInput()`, `params`.
+- Flight keys and gamepad buttons are defined in `sim/src/input/keyboardSource.ts` and
+  `gamepadSource.ts`. Keep the Controls tables in `README.md` in step with them, and keep
+  new flight keys clear of the debug keys above.
+- A gamepad can be faked in browser tests by replacing `navigator.getGamepads` before the
+  page loads; see `sim/e2e/input.spec.ts`.
 - For a repeatable screenshot or test: open with `?paused=1`, call `__sim.step(n)`, then
   read `__sim.getState()` or take the picture.
 
@@ -75,7 +82,9 @@ Notes for headless and cloud sessions:
 - The simulation runs at a fixed 120 Hz step and is deterministic: same seed and inputs
   give the same flight. Rendering interpolates and never changes simulation state.
   State changes only inside `Simulation.step`; drawing reads `Simulation.interpolate`.
-- Flight code depends on `ControlFrame`, never on a specific input device.
+- Flight code depends on `ControlFrame`, never on a specific input device. A device is a
+  `ControlSource` that reports the two physical sticks; `InputManager` does stick mode,
+  deadzone and expo.
 - Every environment implements the `Environment` interface and frees everything in
   `dispose()`.
 - All Air 2S numbers live in one config file, each with a comment naming its source.
