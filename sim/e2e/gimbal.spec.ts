@@ -45,7 +45,7 @@ async function openHovering(page: Page, query = ''): Promise<void> {
 async function hideOverlays(page: Page): Promise<void> {
   await page.addStyleTag({
     content:
-      '#debug-overlay, #status-badge, #flight-status, #camera-label, #stick-monitor, #build-label { visibility: hidden !important; }',
+      '#hud, #debug-overlay, #status-badge, #flight-status, #camera-label, #stick-monitor, #build-label { visibility: hidden !important; }',
   });
 }
 

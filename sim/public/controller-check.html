@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controller check · Air 2S Drone Simulator</title>
+    <!--
+      Step 04 of docs/PLAN.md: finds out how the DJI Smart Controller can talk to the
+      simulator. See docs/CONTROLLER_CHECK.md for how to use it.
+
+      This page stands on its own and is written in old-style JavaScript on purpose: part
+      of the check is opening it in the controller's own browser, which is years old.
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        background: #0d1117;
+        color: #e6edf3;
+        font:
+          16px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 26px;
+      }
+      h2 {
+        margin: 0 0 6px;
+        font-size: 19px;
+      }
+      p {
+        margin: 6px 0;
+      }
+      a {
+        color: #79c0ff;
+      }
+      section {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: #161b22;
+      }
+      .safety {
+        background: #b3261e;
+        color: #fff;
+        font-weight: 700;
+      }
+      .dim {
+        color: #9da7b3;
+        font-size: 14px;
+      }
+      .result {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 3px 12px;
+        border-radius: 6px;
+        background: #57606a;
+        color: #fff;
+        font-weight: 700;
+      }
+      .result.pass {
+        background: #2ea043;
+      }
+      .result.fail {
+        background: #da3633;
+      }
+      .result.waiting {
+        background: #b8860b;
+      }
+      button,
+      .button {
+        display: inline-block;
+        margin: 6px 8px 0 0;
+        padding: 9px 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #ffd166;
+        color: #0d1117;
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      button[disabled] {
+        background: #57606a;
+        color: #c9d1d9;
+        cursor: default;
+      }
+      pre {
+        margin: 8px 0 0;
+        padding: 10px 12px;
+        overflow: auto;
+        border-radius: 8px;
+        background: #0d1117;
+        color: #c9d1d9;
+        font:
+          13px/1.45 ui-monospace,
+          Menlo,
+          Consolas,
+          monospace;
+        white-space: pre-wrap;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      td {
+        padding: 1px 14px 1px 0;
+        vertical-align: top;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Controller check</h1>
+      <p class="dim">
+        Finds out how the DJI Smart Controller can talk to the simulator.
+        <a href="./">Back to the simulator</a>
+      </p>
+
+      <section class="safety">
+        SAFETY: switch the aircraft OFF before you start, and leave it off. The controller
+        commands a switched-on aircraft whatever is on its screen.
+      </section>
+
+      <section>
+        <h2>1 · This browser</h2>
+        <table>
+          <tr>
+            <td>Game controllers</td>
+            <td id="has-gamepad"></td>
+          </tr>
+          <tr>
+            <td>Web Bluetooth</td>
+            <td id="has-bluetooth"></td>
+          </tr>
+          <tr>
+            <td>Web Serial</td>
+            <td id="has-serial"></td>
+          </tr>
+        </table>
+        <p class="dim" id="browser"></p>
+      </section>
+
+      <section>
+        <h2>2 · Does this browser see the sticks as a game controller?</h2>
+        <p>
+          Move both sticks in circles and press a few buttons on the controller. Many
+          browsers only show a game controller after a button was pressed.
+        </p>
+        <span class="result waiting" id="gamepad-result">NOT SEEN SO FAR</span>
+        <pre id="gamepad-list">No game controller seen so far.</pre>
+        <p class="dim">Buttons this browser received as keys: <span id="keys">none</span></p>
+      </section>
+
+      <section>
+        <h2>3 · The RC Probe app</h2>
+        <p>
+          Open this page in the controller's own browser and install the small probe app
+          from here. It needs no DJI account.
+        </p>
+        <a class="button" id="download" href="rc-probe.apk">Download RC Probe (APK)</a>
+      </section>
+
+      <section>
+        <h2>4 · Bluetooth link test</h2>
+        <p>
+          On the controller, open RC Probe and press "Start Bluetooth test". Then press
+          the button below on this PC and choose the controller from the list.
+        </p>
+        <button id="connect" type="button">Connect to RC Probe</button>
+        <button id="disconnect" type="button" disabled>Disconnect</button>
+        <p id="bluetooth-note" class="dim"></p>
+        <span class="result" id="bluetooth-result">NOT RUN</span>
+        <pre id="bluetooth-status">Not connected.</pre>
+      </section>
+
+      <section>
+        <h2>5 · Report</h2>
+        <p>Copy this and send it back when the check is done.</p>
+        <button id="copy" type="button">Copy report</button>
+        <pre id="report"></pre>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        'use strict';
+
+        // Ids of the test service of the RC Probe app (rc-probe/.../BleProbe.kt).
+        var SERVICE = '6a1e0001-7d0c-4b7a-9c53-a25c0de5ad01';
+        var PACKET = '6a1e0002-7d0c-4b7a-9c53-a25c0de5ad01';
+        /** The link is good enough to fly with at this many packets per second. */
+        var GOOD_RATE = 40;
+        /** The verdict is given after this many seconds of listening. */
+        var LISTEN_SECONDS = 5;
+
+        function byId(id) {
+          return document.getElementById(id);
+        }
+
+        function setText(id, text) {
+          var node = byId(id);
+          if (node.textContent !== text) {
+            node.textContent = text;
+          }
+        }
+
+        function setResult(id, kind, text) {
+          var node = byId(id);
+          node.className = 'result' + (kind ? ' ' + kind : '');
+          setText(id, text);
+        }
+
+        function now() {
+          return window.performance && performance.now ? performance.now() : new Date().getTime();
+        }
+
+        // ---- 1 · This browser --------------------------------------------------------
+
+        var hasGamepad = typeof navigator.getGamepads === 'function';
+        var hasBluetooth = !!navigator.bluetooth;
+        var hasSerial = !!navigator.serial;
+
+        setText('has-gamepad', hasGamepad ? 'supported' : 'NOT supported by this browser');
+        setText(
+          'has-bluetooth',
+          hasBluetooth
+            ? 'supported'
+            : 'NOT supported here (needs Chrome or Edge on a PC, on a page that starts with https)'
+        );
+        setText('has-serial', hasSerial ? 'supported' : 'not supported here');
+        setText('browser', navigator.userAgent);
+
+        // ---- 2 · Game controllers ----------------------------------------------------
+
+        /** Per game controller: the first axis values seen, and whether an axis has moved. */
+        var pads = {};
+        var keysSeen = [];
+
+        function readGamepads() {
+          if (!hasGamepad) {
+            return [];
+          }
+          var list = navigator.getGamepads() || [];
+          var found = [];
+          for (var i = 0; i < list.length; i++) {
+            if (list[i]) {
+              found.push(list[i]);
+            }
+          }
+          return found;
+        }
+
+        function refreshGamepads() {
+          var found = readGamepads();
+          var lines = [];
+          var anyMoved = false;
+          for (var i = 0; i < found.length; i++) {
+            var pad = found[i];
+            var key = pad.index + ':' + pad.id;
+            var seen = pads[key];
+            if (!seen) {
+              seen = pads[key] = { id: pad.id, first: [], moved: false, pressed: false };
+              for (var a = 0; a < pad.axes.length; a++) {
+                seen.first.push(pad.axes[a]);
+              }
+            }
+            var axes = [];
+            for (var b = 0; b < pad.axes.length; b++) {
+              if (Math.abs(pad.axes[b] - seen.first[b]) > 0.2) {
+                seen.moved = true;
+              }
+              axes.push(pad.axes[b].toFixed(2));
+            }
+            var down = [];
+            for (var c = 0; c < pad.buttons.length; c++) {
+              var button = pad.buttons[c];
+              if (button && (button.pressed || button.value > 0.5)) {
+                down.push(c);
+                seen.pressed = true;
+              }
+            }
+            anyMoved = anyMoved || seen.moved;
+            lines.push(
+              'Controller ' + pad.index + ': ' + pad.id,
+              '  ' + pad.axes.length + ' axes, ' + pad.buttons.length + ' buttons, layout "' +
+                (pad.mapping || 'none') + '"',
+              '  axes now:      ' + (axes.join('  ') || '-'),
+              '  buttons down:  ' + (down.join(' ') || '-'),
+              '  sticks moved:  ' + (seen.moved ? 'YES' : 'not yet')
+            );
+          }
+
+          if (found.length === 0) {
+            setText('gamepad-list', 'No game controller seen so far.');
+            setResult('gamepad-result', 'waiting', 'NOT SEEN SO FAR');
+          } else {
+            setText('gamepad-list', lines.join('\n'));
+            if (anyMoved) {
+              setResult('gamepad-result', 'pass', 'PASS · sticks seen moving');
+            } else {
+              setResult('gamepad-result', 'waiting', 'CONTROLLER LISTED · now move the sticks');
+            }
+          }
+        }
+
+        function gamepadSummary() {
+          var names = [];
+          var moved = false;
+          for (var key in pads) {
+            if (Object.prototype.hasOwnProperty.call(pads, key)) {
+              names.push(pads[key].id);
+              moved = moved || pads[key].moved;
+            }
+          }
+          if (names.length === 0) {
+            return 'none seen';
+          }
+          return names.join(' | ') + ' - sticks moved: ' + (moved ? 'YES' : 'no');
+        }
+
+        window.addEventListener('keydown', function (event) {
+          var name = event.code || event.key || 'key ' + event.keyCode;
+          if (keysSeen.indexOf(name) < 0 && keysSeen.length < 16) {
+            keysSeen.push(name);
+            setText('keys', keysSeen.join(', '));
+          }
+        });
+
+        // ---- 4 · Bluetooth link test -------------------------------------------------
+
+        var link = {
+          state: 'not connected',
+          deviceName: '',
+          device: null,
+          connectedAt: 0,
+          received: 0,
+          missed: 0,
+          damaged: 0,
+          lastCounter: -1,
+          lastAt: 0,
+          longestGapMs: 0,
+          times: [],
+          sticks: null,
+          sticksReal: false,
+          aircraft: false,
+          error: '',
+        };
+
+        /**
+         * Reads one 20-byte test packet; see rc-probe/.../TestPacket.kt for the layout.
+         * Returns null when the packet is not a valid test packet.
+         */
+        function decodePacket(view) {
+          if (view.byteLength !== 20 || view.getUint8(0) !== 0xa5 || view.getUint8(1) !== 1) {
+            return null;
+          }
+          var sum = 0;
+          for (var i = 0; i < 20; i++) {
+            sum ^= view.getUint8(i);
+          }
+          if (sum !== 0) {
+            return null;
+          }
+          var flags = view.getUint8(18);
+          return {
+            counter: view.getUint32(2, true),
+            elapsedMs: view.getUint32(6, true),
+            leftX: view.getInt16(10, true),
+            leftY: view.getInt16(12, true),
+            rightX: view.getInt16(14, true),
+            rightY: view.getInt16(16, true),
+            sticksReal: (flags & 1) !== 0,
+            aircraft: (flags & 2) !== 0,
+          };
+        }
+
+        function onPacket(event) {
+          var packet = decodePacket(event.target.value);
+          var at = now();
+          if (!packet) {
+            link.damaged++;
+            return;
+          }
+          if (link.lastCounter >= 0) {
+            var step = packet.counter - link.lastCounter;
+            if (step > 1) {
+              link.missed += step - 1;
+            }
+            link.longestGapMs = Math.max(link.longestGapMs, at - link.lastAt);
+          }
+          link.lastCounter = packet.counter;
+          link.lastAt = at;
+          link.received++;
+          link.times.push(at);
+          link.sticks = packet;
+          link.sticksReal = packet.sticksReal;
+          link.aircraft = packet.aircraft;
+        }
+
+        /** Packets per second over the last two seconds. */
+        function packetRate() {
+          var at = now();
+          while (link.times.length > 0 && link.times[0] <= at - 2000) {
+            link.times.shift();
+          }
+          return link.times.length / 2;
+        }
+
+        function linkVerdict() {
+          if (link.state === 'failed') {
+            return { kind: 'fail', text: 'FAIL · could not connect' };
+          }
+          if (link.state !== 'connected') {
+            return { kind: '', text: link.received > 0 ? 'ENDED' : 'NOT RUN' };
+          }
+          var seconds = (now() - link.connectedAt) / 1000;
+          var rate = packetRate();
+          if (seconds < LISTEN_SECONDS) {
+            return { kind: 'waiting', text: 'LISTENING · ' + Math.ceil(LISTEN_SECONDS - seconds) + ' s' };
+          }
+          if (rate >= GOOD_RATE) {
+            return { kind: 'pass', text: 'PASS · ' + rate.toFixed(0) + ' packets per second' };
+          }
+          return { kind: 'fail', text: 'TOO SLOW · ' + rate.toFixed(0) + ' packets per second' };
+        }
+
+        function linkLines() {
+          var lines = ['State: ' + link.state + (link.deviceName ? ' (' + link.deviceName + ')' : '')];
+          if (link.error) {
+            lines.push('Problem: ' + link.error);
+          }
+          if (link.received > 0 || link.state === 'connected') {
+            lines.push(
+              'Packets received: ' + link.received + ', missed: ' + link.missed + ', damaged: ' +
+                link.damaged,
+              'Packets per second now: ' + packetRate().toFixed(0) + ' (the app sends 50)',
+              'Longest pause between two packets: ' + link.longestGapMs.toFixed(0) + ' ms'
+            );
+          }
+          if (link.sticks) {
+            lines.push(
+              link.sticksReal
+                ? 'Sticks: left ' + link.sticks.leftX + ' / ' + link.sticks.leftY + ', right ' +
+                    link.sticks.rightX + ' / ' + link.sticks.rightY + ' (real values, -660 to 660)'
+                : 'Sticks: no stick values in the packets (the DJI probe is not running)'
+            );
+          }
+          if (link.aircraft) {
+            lines.push('AN AIRCRAFT IS CONNECTED TO THE CONTROLLER. SWITCH IT OFF NOW.');
+          }
+          return lines;
+        }
+
+        function refreshLink() {
+          var verdict = linkVerdict();
+          setResult('bluetooth-result', verdict.kind, verdict.text);
+          setText('bluetooth-status', linkLines().join('\n'));
+          byId('connect').disabled = !hasBluetooth || link.state === 'connected' || link.state === 'connecting';
+          byId('disconnect').disabled = link.state !== 'connected';
+        }
+
+        function connect() {
+          link.state = 'connecting';
+          link.error = '';
+          link.received = 0;
+          link.missed = 0;
+          link.damaged = 0;
+          link.lastCounter = -1;
+          link.longestGapMs = 0;
+          link.times = [];
+          link.sticks = null;
+          link.aircraft = false;
+          refreshLink();
+
+          navigator.bluetooth
+            .requestDevice({ filters: [{ services: [SERVICE] }] })
+            .then(function (device) {
+              link.device = device;
+              link.deviceName = device.name || 'unnamed device';
+              device.addEventListener('gattserverdisconnected', function () {
+                if (link.state === 'connected') {
+                  link.state = 'disconnected';
+                }
+              });
+              return device.gatt.connect();
+            })
+            .then(function (server) {
+              return server.getPrimaryService(SERVICE);
+            })
+            .then(function (service) {
+              return service.getCharacteristic(PACKET);
+            })
+            .then(function (characteristic) {
+              characteristic.addEventListener('characteristicvaluechanged', onPacket);
+              return characteristic.startNotifications();
+            })
+            .then(function () {
+              link.state = 'connected';
+              link.connectedAt = now();
+            })
+            ['catch'](function (problem) {
+              // Closing the device list without choosing is not a failure of the link.
+              var cancelled = problem && problem.name === 'NotFoundError';
+              link.state = cancelled ? 'not connected' : 'failed';
+              link.error = cancelled
+                ? 'No device was chosen. If the list was empty, the controller is not advertising.'
+                : String((problem && problem.message) || problem);
+            });
+        }
+
+        function disconnect() {
+          if (link.device && link.device.gatt && link.device.gatt.connected) {
+            link.device.gatt.disconnect();
+          }
+          link.state = 'disconnected';
+        }
+
+        byId('connect').addEventListener('click', connect);
+        byId('disconnect').addEventListener('click', disconnect);
+        if (!hasBluetooth) {
+          setText(
+            'bluetooth-note',
+            'This browser has no Web Bluetooth. Run this part in Chrome or Edge on the PC ' +
+              '(not on the controller, and not in Firefox or Safari).'
+          );
+        }
+
+        // ---- 5 · Report --------------------------------------------------------------
+
+        function report() {
+          var lines = [
+            'CONTROLLER CHECK REPORT',
+            'Browser: ' + navigator.userAgent,
+            'Supported here: game controllers ' + (hasGamepad ? 'yes' : 'no') + ', Web Bluetooth ' +
+              (hasBluetooth ? 'yes' : 'no') + ', Web Serial ' + (hasSerial ? 'yes' : 'no'),
+            '',
+            'GAME CONTROLLERS: ' + gamepadSummary(),
+            'KEYS RECEIVED: ' + (keysSeen.join(', ') || 'none'),
+            '',
+            'BLUETOOTH LINK: ' + byId('bluetooth-result').textContent,
+          ];
+          var details = linkLines();
+          for (var i = 0; i < details.length; i++) {
+            lines.push('  ' + details[i]);
+          }
+          return lines.join('\n');
+        }
+
+        byId('copy').addEventListener('click', function () {
+          var text = byId('report').textContent;
+          var done = function () {
+            byId('copy').textContent = 'Copied';
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () {
+              window.prompt('Copy the report:', text);
+            });
+          } else {
+            window.prompt('Copy the report:', text);
+          }
+        });
+
+        function refresh() {
+          refreshGamepads();
+          refreshLink();
+          setText('report', report());
+        }
+
+        refresh();
+        window.setInterval(refresh, 200);
+
+        // For automated tests.
+        window.__controllerCheck = { decodePacket: decodePacket, link: link, refresh: refresh };
+      })();
+    </script>
+  </body>
+</html>

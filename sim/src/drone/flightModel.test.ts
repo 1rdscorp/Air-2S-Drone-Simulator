@@ -34,6 +34,11 @@ function highUp(): DroneState {
   return createFlyingState(500);
 }
 
+/** The state `start` is in after `seconds` in which nothing but the flight clock moved. */
+function unchangedAfter(start: DroneState, seconds: number): DroneState {
+  return { ...start, flightSeconds: expect.closeTo(seconds, 6) as number };
+}
+
 describe('Normal mode: published speeds', () => {
   it('reaches a top speed of 15 m/s and stays there', () => {
     const state = fly(highUp(), 20, { pitch: 1 });
@@ -107,7 +112,7 @@ describe('hover', () => {
   it('does not move at all when started at rest with the sticks centred', () => {
     const state = fly(createFlyingState(2), 60);
 
-    expect(state).toEqual(createFlyingState(2));
+    expect(state).toEqual(unchangedAfter(createFlyingState(2), 60));
   });
 
   it('does not drift after flying and letting go of the sticks', () => {
@@ -468,7 +473,7 @@ describe('robustness', () => {
   it('treats a lost controller as centred sticks', () => {
     const state = fly(highUp(), 10, { pitch: 1, throttle: 1, yaw: 1, connected: false });
 
-    expect(state).toEqual(highUp());
+    expect(state).toEqual(unchangedAfter(highUp(), 10));
   });
 
   it('limits stick values outside -1 to 1 and ignores nonsense', () => {
@@ -476,7 +481,7 @@ describe('robustness', () => {
     expect(horizontalSpeed(tooMuch)).toBeCloseTo(15, 2);
 
     const nonsense = fly(highUp(), 5, { pitch: Number.NaN, throttle: Number.POSITIVE_INFINITY });
-    expect(nonsense).toEqual(highUp());
+    expect(nonsense).toEqual(unchangedAfter(highUp(), 5));
   });
 
   it('gives exactly the same flight at any display frame rate', () => {

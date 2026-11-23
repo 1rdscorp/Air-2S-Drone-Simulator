@@ -35,7 +35,7 @@ jobs:
     # After GitHub's job, publish only if that job ran for main.
     if: github.event_name != 'workflow_run' || github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: sim
@@ -54,6 +54,26 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # The small probe app of the controller check (Step 04) is offered next to the
+      # simulator, as rc-probe.apk, so it can be downloaded in the controller's own browser.
+      # It contains no DJI SDK and no key. If it cannot be built, the simulator is
+      # published without it.
+      - uses: actions/setup-java@v4
+        continue-on-error: true
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+        continue-on-error: true
+
+      - name: Build the RC Probe app
+        continue-on-error: true
+        working-directory: rc-probe
+        run: |
+          ./gradlew assemblePlainDebug
+          cp app/build/outputs/apk/plain/debug/app-plain-debug.apk ../sim/dist/rc-probe.apk
 
       - uses: actions/configure-pages@v5
 

@@ -1,0 +1,86 @@
+name: RC Probe app
+
+# Tests and builds the small Android app for the controller check (Step 04, rc-probe/).
+#
+# Each run offers the installable files as downloads on the run's page, under "Artifacts":
+#   rc-probe-small  without the DJI SDK; needs nothing.
+#   rc-probe-dji    with the DJI Mobile SDK v4. Only offered when the repository secret
+#                   DJI_APP_KEY exists. The file contains that key: do not pass it on.
+#
+# How to use the app: docs/CONTROLLER_CHECK.md.
+on:
+  push:
+    paths:
+      - 'rc-probe/**'
+      - '.github/workflows/rc-probe.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: rc-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: rc-probe
+    env:
+      HAS_DJI_KEY: ${{ secrets.DJI_APP_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew testPlainDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew lintPlainDebug lintDjiDebug
+
+      - name: Build the small app
+        run: |
+          ./gradlew assemblePlainDebug
+          mkdir -p out
+          cp app/build/outputs/apk/plain/debug/app-plain-debug.apk out/rc-probe.apk
+
+      # Always built, so a change that breaks the DJI part is noticed even without a key.
+      - name: Build the app with the DJI SDK
+        env:
+          DJI_APP_KEY: ${{ secrets.DJI_APP_KEY }}
+        run: |
+          ./gradlew assembleDjiDebug
+          cp app/build/outputs/apk/dji/debug/app-dji-debug.apk out/rc-probe-dji.apk
+
+      - name: Offer the small app
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc-probe-small
+          path: rc-probe/out/rc-probe.apk
+          retention-days: 30
+
+      - name: Offer the app with the DJI SDK
+        if: env.HAS_DJI_KEY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc-probe-dji
+          path: rc-probe/out/rc-probe-dji.apk
+          retention-days: 7
+
+      - name: Keep the test and lint reports when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc-probe-reports
+          path: rc-probe/app/build/reports
+          retention-days: 7

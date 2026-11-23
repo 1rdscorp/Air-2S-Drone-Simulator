@@ -69,6 +69,15 @@ export interface DroneState {
   /** Whether the two gimbal shortcut buttons (C1, C2) were down in the last step. */
   c1ButtonWasDown: boolean;
   c2ButtonWasDown: boolean;
+  /**
+   * Home point: where the aircraft stood when its motors were last started. `homeSet` is
+   * false until the motors have been started for the first time.
+   */
+  homeSet: boolean;
+  homeX: number;
+  homeZ: number;
+  /** Flight time: seconds the motors have been running since they were last started. */
+  flightSeconds: number;
 }
 
 /** The part of the state that is needed to draw the aircraft. */
@@ -116,10 +125,17 @@ export function createDroneState(): DroneState {
     gimbalTarget: 0,
     c1ButtonWasDown: false,
     c2ButtonWasDown: false,
+    homeSet: false,
+    homeX: 0,
+    homeZ: 0,
+    flightSeconds: 0,
   };
 }
 
-/** The aircraft already in the air: hovering at rest at `height` metres above the origin. */
+/**
+ * The aircraft already in the air: hovering at rest at `height` metres above the origin.
+ * Its home point is the origin, straight below it, and its flight clock starts at zero.
+ */
 export function createFlyingState(height: number): DroneState {
   return {
     ...createDroneState(),
@@ -129,6 +145,7 @@ export function createFlyingState(height: number): DroneState {
     holdActive: true,
     altitudeHoldActive: true,
     holdY: height,
+    homeSet: true,
   };
 }
 
@@ -152,6 +169,13 @@ export function blendPose(
   out.roll = from.roll + (to.roll - from.roll) * t;
   out.gimbalTilt = from.gimbalTilt + (to.gimbalTilt - from.gimbalTilt) * t;
   return out;
+}
+
+/** Distance over the ground from the aircraft to its home point, in metres. 0 while no home point is set. */
+export function distanceFromHome(
+  state: Pick<DroneState, 'x' | 'z' | 'homeSet' | 'homeX' | 'homeZ'>,
+): number {
+  return state.homeSet ? Math.hypot(state.homeX - state.x, state.homeZ - state.z) : 0;
 }
 
 /** Speed over the ground, in m/s. */

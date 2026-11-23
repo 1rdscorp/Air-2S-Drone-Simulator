@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+# The DJI app key is never committed. See docs/CONTROLLER_CHECK.md.
+dji.properties
+*.apk
+*.keystore
+*.jks
+.idea/
+*.iml
+.kotlin/

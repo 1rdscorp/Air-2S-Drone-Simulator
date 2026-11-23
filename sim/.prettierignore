@@ -4,3 +4,7 @@ playwright-report
 test-results
 coverage
 package-lock.json
+
+# Written by hand in old-style JavaScript for the Smart Controller's own browser;
+# Prettier would add syntax that browser cannot read.
+public/controller-check.html

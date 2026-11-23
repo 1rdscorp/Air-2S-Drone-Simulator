@@ -22,8 +22,12 @@ import { type ControlFrame, neutralFrame, noButtonsPressed } from './input/types
 import { bindDebugKeys, nextTimeScale } from './ui/debugControls';
 import { type DebugInfo, DebugOverlay, formatTimeScale } from './ui/debugOverlay';
 import { flightStatusText, takeoffButtonName } from './ui/flightStatus';
+import { flightMessage } from './ui/flightMessages';
 import { bindFreeCameraControls } from './ui/freeCameraControls';
+import { Hud } from './ui/hud';
+import { hudValues } from './ui/hudValues';
 import { StickMonitor } from './ui/stickMonitor';
+import { ToastList } from './ui/toasts';
 
 const MAX_PIXEL_RATIO = 2;
 
@@ -105,13 +109,21 @@ function start(): void {
   let scripted: ControlFrame | null = null;
   const currentControls = (): ControlFrame => scripted ?? input.frame;
 
+  // Flight display. It shows the simulation state and the messages about what happens in
+  // the flight; the messages live in simulated time.
+  const hud = new Hud(requireElement('#hud'));
+  const toasts = new ToastList();
+
   // Simulation and loop. The simulation only changes in `step`; `render` only reads it.
   const sim = new Simulation({ gimbalUpward: params.gimbalUpward });
   /** Real time since the previous display frame; the chase camera eases with it. */
   let frameSeconds = 0;
   const loop = new GameLoop({
-    step: (dt) => {
+    step: (dt, tick) => {
       sim.step(dt, currentControls());
+      sim.drainEvents((event) => {
+        toasts.push(flightMessage(event), (tick + 1) * dt);
+      });
     },
     render: (alpha) => {
       const pose = sim.interpolate(alpha);
@@ -122,6 +134,7 @@ function start(): void {
       cameraRig.update(camera, pose, frameSeconds);
       aimSunAt(sun, pose.x, pose.y, pose.z);
       renderer.render(scene, camera);
+      hud.update(hudValues(sim.state, currentControls().mode), toasts.active(loop.simTime));
     },
   });
   loop.paused = params.paused;
@@ -183,6 +196,7 @@ function start(): void {
 
   const resetFlight = (height?: number): void => {
     sim.reset(height);
+    toasts.clear();
     drawNow();
     overlay.refreshSoon();
   };
@@ -197,7 +211,7 @@ function start(): void {
   /** Tells the pilot what the aircraft is doing and which button comes next. */
   let shownFlightStatus = '';
   const refreshFlightStatus = (): void => {
-    const state = sim.snapshot();
+    const state = sim.state;
     const text = flightStatusText(
       state.phase,
       state.onGround,

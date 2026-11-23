@@ -16,9 +16,13 @@ in its decision log (section 9).
 - `sim/` — web simulator: TypeScript (strict), Three.js, Vite.
   - `sim/src/` — app code; unit tests sit next to the code as `*.test.ts`.
   - `sim/e2e/` — Playwright browser tests; `*-snapshots/` folders hold reference pictures.
+- `rc-probe/` — small Android app for the controller check of Step 04 (Kotlin). Two
+  builds: `plain` (no DJI software) and `dji` (DJI Mobile SDK 4.18). It is a throw-away
+  test tool, not the start of the bridge app.
 - `rc-bridge/` — Android app for the Smart Controller (Kotlin, DJI Mobile SDK v4). Created in Step 22.
 - `docs/` — plan, prompts, protocol, setup guides.
-- `.github/workflows/` — `ci.yml` (every push) and `deploy.yml` (GitHub Pages, from `main`).
+- `.github/workflows/` — `ci.yml` (every push), `rc-probe.yml` (pushes that touch
+  `rc-probe/`, and by hand) and `deploy.yml` (GitHub Pages, from `main`).
   The published site is https://1rdscorp.github.io/Air-2S-Drone-Simulator/ and shows what
   is merged into `main`. `deploy.yml` runs on the push and again after GitHub's own
   "pages build and deployment" job, which would otherwise replace the simulator with the
@@ -38,7 +42,22 @@ Run all of these inside `sim/` (Node 22, `npm ci` first).
 | `npm run build` | Production build into `sim/dist/` |
 | `npm run check` | Lint, type-check, unit tests, build and smoke test in one go |
 
+The Android app in `rc-probe/` has its own commands. Run them inside `rc-probe/`; they
+need a JDK (17 or newer) and the Android SDK (`ANDROID_HOME`, platform 35).
+
+| Command | What it does |
+|---------|--------------|
+| `./gradlew testPlainDebugUnitTest` | Unit tests, and a start of the app's screen on a simulated Android 7.1 |
+| `./gradlew lintPlainDebug lintDjiDebug` | Android lint for both builds |
+| `./gradlew assemblePlainDebug` | The small app, `app/build/outputs/apk/plain/debug/` |
+| `./gradlew assembleDjiDebug` | The app with the DJI SDK; the key comes from `DJI_APP_KEY` or `rc-probe/dji.properties` |
+
 Notes for headless and cloud sessions:
+
+- A cloud session has no Android SDK. Download Google's command-line tools into a folder,
+  set `ANDROID_HOME` to it and install `platforms;android-35`, `build-tools;35.0.0` and
+  `platform-tools` with `sdkmanager`. No Android device or emulator can run there, so the
+  app itself is only ever tried by the owner on the real controller.
 
 - `@playwright/test` is pinned to the version whose Chromium is preinstalled in Claude
   cloud sessions. If the versions drift apart, set `PW_CHROMIUM_PATH` to the installed
@@ -82,6 +101,9 @@ scene is mostly flat sky and ground, so even a clearly different view changes we
 
 - When such a test fails, look at the actual picture before anything else. If the view
   changed by mistake, fix the code.
+- The tests hide everything on top of the 3D view with `visibility: hidden` on `#hud` and
+  the other overlays. An element that sets its own `visibility` stays visible and ends up
+  in the pictures, so show and hide parts of an overlay with `hidden` or `display`.
 - Only when the view was meant to change, renew the references inside `sim/` with
   `npx playwright test --update-snapshots=all`, look at every new picture, and commit them.
 - After a change that should alter a view, check that the old reference really fails
@@ -132,9 +154,32 @@ scene is mostly flat sky and ground, so even a clearly different view changes we
 - The camera gimbal is part of the simulation state (`gimbalTilt` in `DroneState`, moved by
   `sim/src/drone/gimbal.ts`). Its tilt is measured against the horizon: 0 is level, −90°
   is straight down. The drone camera view and the model's camera pod both read it.
+- The flight display is `sim/src/ui/hud.ts`. It only shows numbers that `hudValues`
+  (`sim/src/ui/hudValues.ts`) reads off the simulation state, and every value carries a
+  `data-hud` name that browser tests read (see `sim/e2e/hud.spec.ts`). The home point and
+  the flight time are in `DroneState` (`sim/src/drone/flightRecord.ts`).
+- Messages to the pilot come from flight events: `Simulation` reports what happened in a
+  step (`sim/src/drone/flightEvents.ts`), `sim/src/ui/flightMessages.ts` has the words.
+  Events are a report and never change the flight. Messages live in simulated time.
 - Do not draw long lines with line geometry (`GridHelper`, `Line`, `LineSegments`): the
   software renderer misplaces lines that pass behind the camera. Use textures or meshes.
 - Secrets (the DJI app key) come from a local file or CI secret and are never committed.
+
+## Controller check (Step 04)
+
+- `docs/CONTROLLER_CHECK.md` is the checklist the owner follows with the real controller.
+  Keep it in step with the app and the page whenever a button or a text changes.
+- `sim/public/controller-check.html` is published next to the simulator. It is written by
+  hand in old-style JavaScript (ES5) because it is also opened in the controller's own,
+  years-old browser; it is excluded from Prettier, and `sim/src/controllerCheckPage.test.ts`
+  fails if newer syntax slips in. Its browser tests are `sim/e2e/controllerCheck.spec.ts`.
+- The page and the app share the ids of the Bluetooth test service and the layout of the
+  20-byte test packet (`rc-probe/.../TestPacket.kt`). Both sides test the same reference
+  packet; change them together.
+- In the app, what a probe found is plain data (`Findings.kt`) and a function turns it
+  into the verdict. Keep Android calls out of those functions so they stay unit-tested.
+- The DJI app key is the repository secret `DJI_APP_KEY`. An app built with it contains
+  the key and is never put on the public site; `deploy.yml` publishes only the small build.
 
 ## Safety
 

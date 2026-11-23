@@ -58,6 +58,22 @@ Change these first if any of them is wrong — everything else depends on them.
 - Web Bluetooth works in Chrome and Edge on Windows, macOS, ChromeOS and Android. It does
   **not** work in Firefox or Safari (so no iPhone / iPad). It needs HTTPS or `localhost`.
 
+Added while preparing Step 04 (web search and DJI's published sample code; nothing here
+was tried on the hardware):
+
+- The SDK has a real "only the remote controller is connected" state: DJI's sample app
+  shows it when the aircraft is off. Whether stick values arrive in that state is not
+  documented anywhere I could find; the probe has to show it.
+- SDK 4.18 (October 2024) is the last v4 release. Registering an app needs internet once,
+  and DJI's flight app must be force-stopped first, or it keeps the controller for itself.
+- Apps are installed on the controller from its own browser or from a microSD card.
+  Reports disagree on whether its Android is 32 or 64 bit, so the app is built for both.
+- Community tools read the sticks of the newer DJI RC over Wi-Fi from an undocumented
+  service, at about 9 values per second, and report that newer firmware closes it. Too
+  slow and too fragile to build on; noted only for completeness.
+- DJI Flight Simulator uses the Smart Controller over the USB-C cable. One user reports
+  that it then appears to the PC as a serial (COM) port; nobody reports a game controller.
+
 ### The design that follows
 
 ```
@@ -84,8 +100,8 @@ Change these first if any of them is wrong — everything else depends on them.
 | Order | Link | Controller side | Simulator side | Note |
 |-------|------|-----------------|----------------|------|
 | 1 | Bluetooth LE | GATT server in the bridge app | Web Bluetooth | Preferred. |
-| 2 | Bluetooth Classic (serial) | RFCOMM server in the bridge app | Web Serial over Bluetooth (Chrome desktop) | Still Bluetooth. Browser support to confirm in Step 04. |
-| 3 | Wi-Fi | WebSocket server in the bridge app | `WebSocket` to the controller's IP | Lowest risk, not Bluetooth. |
+| 2 | Bluetooth Classic (serial) | RFCOMM server in the bridge app | Web Serial over Bluetooth (Chrome desktop) | Still Bluetooth. Chrome and Edge 117 or newer on a PC; the controller has to be paired with the PC first. |
+| 3 | Wi-Fi | WebSocket server in the bridge app | `WebSocket` to the controller's IP | Lowest risk, not Bluetooth. A page loaded over https may not open a plain connection to a device on the home network, so with this link the simulator has to be opened from `localhost` instead of the published site. |
 | 4 | USB cable | none | Web Serial + DJI's serial protocol | Community tools do this for the RC-N1; unconfirmed for the RM500. |
 
 If the sticks cannot be read at all, the simulator still works with any standard gamepad.
@@ -239,15 +255,21 @@ and add a line to the decision log (section 9) if something changed.
     Gamepad API source; stick modes 1 / 2 / 3; deadzone and expo; on-screen stick monitor.
   - Done when: mapping, deadzone and expo are unit-tested; the monitor follows keyboard
     and gamepad.
-- [ ] **04 — Controller reality check (needs your hardware)** — postponed on 2026-11-23; do it before Step 21.
+- [ ] **04 — Controller reality check (needs your hardware)** — the tools were built on
+  2026-11-23; **the check itself is waiting for you to run it** with the real controller,
+  following `docs/CONTROLLER_CHECK.md`. It must be done before Step 21.
   - Part A, no code, 10 minutes: pair the controller with the PC over Bluetooth and
     look for a game controller; open a gamepad-tester page in the controller's own
     browser; connect by USB and look in Device Manager.
   - Part B: a tiny "RC Probe" Android app with three probes — Android input devices,
     BLE advertising support, DJI SDK stick callback with the drone off — each showing
     PASS or FAIL, with a "copy report" button.
+  - Built: the check page `controller-check.html` next to the simulator (game
+    controllers, keys, and a Bluetooth link test that counts packets per second); the
+    RC Probe app in `rc-probe/`, as a small build without DJI software and a build with
+    the DJI Mobile SDK 4.18; the checklist `docs/CONTROLLER_CHECK.md`.
   - Done when: the three unknowns in section 3 are answered and the chosen link is
-    written in the decision log. Can be postponed, but must be done before Step 21.
+    written in the decision log.
 - [x] **05 — Flight model v1**
   - Build: drone state (position, velocity, attitude, rates); flight controller that
     turns sticks into target velocity, climb rate and yaw rate; tilt response, drag,
@@ -270,7 +292,7 @@ and add a line to the decision log (section 9) if something changed.
     0°, optional +24°; dial and key control with rate limit and smoothing; correct field
     of view; recentre and look-down shortcuts.
   - Done when: tests show camera roll stays 0° at 30° drone roll and tilt is clamped.
-- [ ] **09 — HUD v1**
+- [x] **09 — HUD v1**
   - Build: height, distance from home, horizontal and vertical speed, mode, battery
     placeholder, flight time, compass, attitude and home-direction indicator, gimbal
     angle, message toasts.
@@ -408,7 +430,8 @@ and add a line to the decision log (section 9) if something changed.
 ### Your part
 
 - Step 04, 22–25: run the hardware checklists with the real controller (drone off).
-- Before Step 04 part B and Step 22: create a free DJI developer account and an app key.
+- Before Step 04 part C and Step 22: create a DJI developer account and an app key.
+  Parts A and B of the check need no account.
 - Step 01: allow GitHub Pages for the repository, if you want a link to each version.
 - Any time: say how the flight feels compared with your real Air 2S.
 
@@ -486,6 +509,19 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 08 — Field of view of the drone camera: DJI's 88° is across the diagonal of the 3:2 photo; that is 77.6° from side to side, which agrees with the published 22 mm equivalent lens. The width of the view is fixed at that value and the height follows the window's shape (48.6° on a 16:9 screen). The chase and free views keep 55°.
 - 2026-11-23 — step 08 — Picture tests are now strict: at most 100 differing pixels, with a finer colour threshold — the 1 % allowance of Step 07 let the field-of-view change through unnoticed, because this scene is mostly flat sky and ground. Unchanged views are identical to the last pixel from run to run.
 - 2026-11-23 — step 08 — The camera pod of the model stays level and tilts with the gimbal, so stabilisation can be seen from the chase and free views.
+- 2026-11-23 — step 09 — Home point and flight time are part of the simulation state: starting the motors records the spot as home and sets the clock to zero; the clock runs while the motors run, also on the ground, and keeps its value after they stop — Return-to-Home (Step 26) needs the same home point, and a display fed only by simulation state is the same on every run.
+- 2026-11-23 — step 09 — Flight display layout, our own design: mode, flight time and battery top left; a compass tape top centre with the heading and a mark for the direction of home; a horizon instrument bottom left with the direction to home on its rim, next to height, distance from home, speed, climb rate and camera tilt. Metric units only until the settings screen (Step 34).
+- 2026-11-23 — step 09 — The battery always reads 100 % — the battery model is Step 26.
+- 2026-11-23 — step 09 — Closer than 0.5 m to home the two home marks are hidden — there is no meaningful direction to a point straight below.
+- 2026-11-23 — step 09 — Messages: the simulation reports what happens in a flight (take-off, landing, mode change, emergency stop, lost controller, ...) as flight events, and the display turns them into short messages under the compass. They last 4 simulated seconds, warnings 7, at most three at once, and a newer message about the same subject replaces the older one — so a test that steps the simulation always sees the same messages, and they stay while paused.
+- 2026-11-23 — step 09 — The line at the bottom that says which key comes next stays as it is. The "Paused / Speed" badge moved to the top right and the debug overlay moved down, to make room for the compass and the top row.
+- 2026-11-23 — step 04 — The tools for the controller check are built; the check itself is not done and the step stays open until the owner has run `docs/CONTROLLER_CHECK.md` with the real controller — only the hardware can answer the three questions.
+- 2026-11-23 — step 04 — The probe is its own small app in `rc-probe/`, not the start of the bridge app — it is thrown away after the check, and `rc-bridge/` (Step 22) starts clean with what the check has found.
+- 2026-11-23 — step 04 — Two builds of the probe: a small one without any DJI software (0.9 MB, no account needed, offered for download next to the simulator) and one with the DJI Mobile SDK 4.18 (77 MB, needs a DJI app key, offered only as a download on the build's page) — two of the three questions can then be answered at once, and a fault in DJI's old SDK cannot stop the other two probes.
+- 2026-11-23 — step 04 — The DJI app key is the repository secret `DJI_APP_KEY`, or the ignored file `rc-probe/dji.properties` for a local build. The app with the key inside is never published on the project site, because the site is public.
+- 2026-11-23 — step 04 — The Bluetooth probe goes one step further than "can it advertise": it also sends a 20-byte test packet 50 times per second, and the check page on the PC connects and counts them — advertising alone would not show whether the link is fast enough to fly with (at least 40 packets per second). The packet is for this measurement only; the real protocol is Step 21.
+- 2026-11-23 — step 04 — Android build tools are pinned: Gradle 8.14.3, Android Gradle plugin 8.13.2, Kotlin 2.2.21, target Android 11 (API 30), minimum Android 7.0 — DJI's SDK v4 is old and newer tools are not guaranteed to work with it. With target 30 the two old Bluetooth permissions are enough on every Android version.
+- 2026-11-23 — step 04 — The check page is hand-written in old-style JavaScript and excluded from the code formatter; a unit test checks that it stays that way — part of the check is opening it in the controller's own browser, which is years old.
 
 ---
 
@@ -497,5 +533,9 @@ Add one line per decision: date — step — what was decided — why.
 - [DJI Mobile SDK v4: remote controller hardware state](https://developer.dji.com/api-reference/android-api/Components/RemoteController/DJIRemoteController_DJIRCHardwareState.html)
 - [DroneDJ: Mobile SDK 4.16 adds Air 2S](https://dronedj.com/2022/01/03/dji-sdk-mini-2-se-air-2s/)
 - [MDN: Web Bluetooth API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API) and [caniuse: Web Bluetooth](https://caniuse.com/web-bluetooth)
+- [DJI Mobile SDK v4 sample app](https://github.com/dji-sdk/Mobile-SDK-Android/tree/master/Sample%20Code) — build settings for SDK 4.18, the "only remote controller connected" state, reading the sticks.
+- [Chrome: serial over Bluetooth](https://developer.chrome.com/blog/serial-over-bluetooth) — Web Serial for Bluetooth serial ports, from Chrome 117.
+- [Litchi: DJI controllers with a screen](https://flylitchi.com/dji-monitors) — force-stop DJI's own app before another app can use the controller.
+- [dji-rc-joystick](https://github.com/voluminor/dji-rc-joystick) — community tool reading the DJI RC's sticks over Wi-Fi.
 - [DJI Air 2S specifications](https://www.dji.com/air-2s/info) and [support page](https://www.dji.com/support/product/air-2s)
 - [Community example: DJI RC-N1 as a simulator joystick over USB](https://github.com/pverhaert/DJI_RCN1_for_drone_simulators)

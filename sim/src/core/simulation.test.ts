@@ -54,7 +54,11 @@ describe('Simulation', () => {
     const sim = airborne();
     run(sim, 10, HOVER);
 
-    expect(sim.snapshot()).toEqual(createFlyingState(50));
+    // Nothing but the flight clock has moved.
+    expect(sim.snapshot()).toEqual({
+      ...createFlyingState(50),
+      flightSeconds: expect.closeTo(10, 6) as number,
+    });
   });
 
   it('blends between the previous and the current step for drawing', () => {
@@ -89,6 +93,26 @@ describe('Simulation', () => {
 
     expect(first).toEqual(createFlyingState(50));
     expect(sim.snapshot()).not.toEqual(first);
+  });
+
+  it('lets the display read the current state without copying it', () => {
+    const sim = airborne();
+    const live = sim.state;
+    run(sim, 1, FORWARD);
+
+    expect(sim.state).toBe(live);
+    expect(live).toEqual(sim.snapshot());
+    expect(sim.snapshot()).not.toBe(live);
+  });
+
+  it('keeps the flight clock and the home point', () => {
+    const sim = airborne();
+    run(sim, 6, FORWARD);
+
+    const state = sim.snapshot();
+    expect(state.flightSeconds).toBeCloseTo(6, 6);
+    expect(state.homeSet).toBe(true);
+    expect([state.homeX, state.homeZ]).toEqual([0, 0]);
   });
 
   it('can be put back to the start: on the ground, motors off', () => {

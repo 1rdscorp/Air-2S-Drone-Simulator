@@ -7,16 +7,23 @@ import {
   type DroneState,
   type FlightPhase,
 } from '../drone/droneState';
+import { type FlightEvent, phaseEvents } from '../drone/flightEvents';
 import { DEFAULT_FLIGHT_OPTIONS, type FlightOptions, stepDrone } from '../drone/flightModel';
-import type { ControlFrame } from '../input/types';
+import type { ControlFrame, FlightMode } from '../input/types';
 
 /** Everything the simulation knows at one moment. For now that is the aircraft. */
 export type SimState = DroneState;
+
+/** Events nobody collects are dropped, oldest first, beyond this many. */
+const MAX_PENDING_EVENTS = 64;
 
 /**
  * The simulated world. It only changes inside `step`, by a fixed amount of time and from
  * the controls it is given, so the same sequence of steps and controls always produces
  * the same flight.
+ *
+ * What happens on the way (take-off, landing, a mode change, ...) is reported as flight
+ * events. They are a report for the pilot's display and never influence the flight.
  */
 export class Simulation {
   private readonly previous: DroneState = createDroneState();
@@ -31,6 +38,10 @@ export class Simulation {
     gimbalTilt: 0,
   };
   private readonly options: FlightOptions;
+  private readonly pending: FlightEvent[] = [];
+  /** Flight mode and connection in the previous step; null before the first step. */
+  private lastMode: FlightMode | null = null;
+  private lastConnected: boolean | null = null;
 
   constructor(options: Partial<FlightOptions> = {}) {
     this.options = { ...DEFAULT_FLIGHT_OPTIONS, ...options };
@@ -40,6 +51,26 @@ export class Simulation {
   step(dt: number, controls: ControlFrame): void {
     copyDroneState(this.previous, this.current);
     stepDrone(this.current, controls, dt, this.options);
+    this.report(controls);
+  }
+
+  /**
+   * Hands every flight event since the last call to `handler`, oldest first, and forgets
+   * them. Call it after each step to know in which step something happened.
+   */
+  drainEvents(handler: (event: FlightEvent) => void): void {
+    if (this.pending.length === 0) {
+      return;
+    }
+    const events = this.pending.splice(0);
+    for (const event of events) {
+      handler(event);
+    }
+  }
+
+  /** The current state itself, for reading only. Use `snapshot` for a copy to keep. */
+  get state(): Readonly<SimState> {
+    return this.current;
   }
 
   /**
@@ -69,5 +100,28 @@ export class Simulation {
     const start = height === undefined ? createDroneState() : createFlyingState(height);
     copyDroneState(this.current, start);
     copyDroneState(this.previous, start);
+    this.pending.length = 0;
+    this.lastMode = null;
+    this.lastConnected = null;
+  }
+
+  /** Notes what happened in the step that has just run. */
+  private report(controls: ControlFrame): void {
+    if (this.lastConnected !== null && controls.connected !== this.lastConnected) {
+      this.pending.push({ type: controls.connected ? 'controlRestored' : 'controlLost' });
+    }
+    this.lastConnected = controls.connected;
+
+    if (this.lastMode !== null && controls.mode !== this.lastMode) {
+      this.pending.push({ type: 'modeChanged', mode: controls.mode });
+    }
+    this.lastMode = controls.mode;
+
+    for (const type of phaseEvents(this.previous, this.current)) {
+      this.pending.push({ type });
+    }
+    if (this.pending.length > MAX_PENDING_EVENTS) {
+      this.pending.splice(0, this.pending.length - MAX_PENDING_EVENTS);
+    }
   }
 }
