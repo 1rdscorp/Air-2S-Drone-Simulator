@@ -203,9 +203,13 @@ the pages themselves could not be opened from the build session.
 | Battery | 3500 mAh, 11.55 V, 40.42 Wh |
 
 Not published, so tuned by feel and by tests: how quickly the aircraft tilts, accelerates,
-brakes and turns, and the air drag. The drag value was chosen so that the published tilt
-limits and top speeds agree with each other. Cine-mode climb, descent and tilt have to be
-chosen in Step 06.
+brakes and turns in each mode, and the air drag. The drag value was chosen so that the
+published tilt limits and top speeds agree with each other.
+
+Chosen in Step 06, because DJI publishes nothing for them: Cine mode climbs and descends at
+2 m/s and tilts at most 12°. Take-off height (1.2 m), landing speeds and the hold times for
+starting and stopping the motors are also chosen values; see `FLIGHT_PROCEDURE` in the
+config file.
 
 ---
 
@@ -251,7 +255,7 @@ and add a line to the decision log (section 9) if something changed.
     flat-ground collision.
   - Done when: unit tests pass for Normal mode — top speed 15 m/s, climb 6 m/s,
     descent 6 m/s, yaw 90°/s, zero drift in hover without wind.
-- [ ] **06 — Flight states and modes**
+- [x] **06 — Flight states and modes**
   - Build: state machine motors off → take-off → flying → landing → landed, started
     by the stick command (both sticks down and inward) or a button; auto take-off to
     1.2 m; auto landing; Cine / Normal / Sport parameter sets; emergency motor stop.
@@ -458,6 +462,16 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 05 — Fixed a Step 03 fault: a key pressed and released between two display frames was missed, so a quick tap on 1 / 2 / 3 or a button could do nothing. Taps are now remembered until the next read.
 - 2026-11-23 — step 05 — Added Backspace (back to the start) and, for tests, `__sim.setControls()` and `__sim.reset()`.
 - 2026-11-23 — publish — The deploy workflow now also runs each time GitHub's own "pages build and deployment" job has finished — while the Pages setting is "Deploy from a branch", that job publishes the README on every merge and sometimes landed after our deploy, so the site showed text instead of the simulator. Setting Pages → Source to "GitHub Actions" would remove GitHub's job; the workflow works either way.
+- 2026-11-23 — step 06 — Flight phases are motors off, idle (on the ground, motors running), taking off, flying, landing. The plan's "landed" is idle after a landing by hand, and motors off after an automatic landing — that is how the real aircraft ends each kind of landing.
+- 2026-11-23 — step 06 — The stick command is recognised from the stick functions: throttle and pitch fully down, roll and yaw fully over in opposite directions — this is "both sticks down and inward or outward" in every stick mode, so no device needs special handling.
+- 2026-11-23 — step 06 — Timings: stick command held 0.25 s on the ground starts or stops the motors; held 2 s in the air cuts them (emergency stop); throttle held fully down for 3 s on the ground stops them. These are chosen values and were not checked against a DJI page.
+- 2026-11-23 — step 06 — One take-off / landing button (T, gamepad Start): takes off from the ground, lands from the air, and pressed again cancels a landing. Flight pause (Space, gamepad B) also cancels an automatic take-off or landing.
+- 2026-11-23 — step 06 — The K key gives the stick command on the keyboard — holding four keys at once does not register on many keyboards.
+- 2026-11-23 — step 06 — Automatic take-off climbs to 1.2 m in about 2 s without overshoot and ignores the sticks; it is the same in every flight mode. Automatic landing descends at 3 m/s, slows below 7 m to 0.5 m/s at touchdown, and lets the pilot steer and turn.
+- 2026-11-23 — step 06 — After an emergency stop the aircraft falls under gravity and air drag (about 23 m/s after 90 m) and simply stops on the ground; damage and crashes are Step 10.
+- 2026-11-23 — step 06 — The three modes have their own limits and feel. Measured: Cine reaches 4.5 m/s in 2.8 s and stops from 5 m/s in 7 m; Normal reaches 13.5 m/s in 4.6 s and stops from 15 m/s in 20 m; Sport reaches 17 m/s in 4.1 s, flies at 34° tilt at 19 m/s and stops in 22 m. Change `MODE_TUNING` if a mode does not feel right.
+- 2026-11-23 — step 06 — The aircraft now starts on the ground with the motors off. A one-line flight status at the bottom of the screen says what it is doing and which key comes next — without it the first screen would not explain itself; Step 09 turns it into the proper HUD.
+- 2026-11-23 — step 06 — For tests, `__sim.reset({ height })` starts in a hover and `__sim.setControls({ buttons })` presses buttons.
 
 ---
 

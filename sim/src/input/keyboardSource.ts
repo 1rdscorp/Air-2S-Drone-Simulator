@@ -27,12 +27,25 @@ const MODE_KEYS: Record<string, FlightMode> = {
 };
 
 const BUTTON_KEYS: Record<string, ButtonId> = {
+  KeyT: 'takeoffLand',
   KeyH: 'rth',
   Space: 'pause',
   KeyC: 'record',
   KeyB: 'shutter',
   KeyZ: 'c1',
   KeyX: 'c2',
+};
+
+/**
+ * One key for the stick command that starts and stops the motors: it pulls both sticks
+ * down and towards each other, which on a keyboard would otherwise take four keys at once.
+ */
+const STICK_COMMAND_KEY = 'KeyK';
+const STICK_COMMAND: Record<Exclude<StickAxis, 'gimbal'>, number> = {
+  leftX: 1,
+  leftY: -1,
+  rightX: -1,
+  rightY: -1,
 };
 
 /**
@@ -77,7 +90,9 @@ export class KeyboardSource implements ControlSource {
 
   /** True when this source uses the key, so the page should not also act on it. */
   handles(code: string): boolean {
-    return code in AXIS_KEYS || code in MODE_KEYS || code in BUTTON_KEYS;
+    return (
+      code in AXIS_KEYS || code in MODE_KEYS || code in BUTTON_KEYS || code === STICK_COMMAND_KEY
+    );
   }
 
   keyDown(code: string): void {
@@ -156,6 +171,9 @@ export class KeyboardSource implements ControlSource {
       if (key) {
         targets[key.axis] += key.direction; // opposite keys cancel out
       }
+    }
+    if (active.has(STICK_COMMAND_KEY)) {
+      Object.assign(targets, STICK_COMMAND); // takes over both sticks
     }
 
     for (const axis of Object.keys(targets) as StickAxis[]) {

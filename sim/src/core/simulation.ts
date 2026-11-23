@@ -2,6 +2,7 @@ import {
   blendPose,
   copyDroneState,
   createDroneState,
+  createFlyingState,
   type DronePose,
   type DroneState,
 } from '../drone/droneState';
@@ -41,9 +42,13 @@ export class Simulation {
     return { ...this.current };
   }
 
-  /** Puts the aircraft back where it started. */
-  reset(): void {
-    copyDroneState(this.current, createDroneState());
-    copyDroneState(this.previous, this.current);
+  /**
+   * Puts the aircraft back at the start: on the ground with the motors off.
+   * @param height if given, start hovering at this height in metres instead
+   */
+  reset(height?: number): void {
+    const start = height === undefined ? createDroneState() : createFlyingState(height);
+    copyDroneState(this.current, start);
+    copyDroneState(this.previous, start);
   }
 }

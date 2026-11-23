@@ -93,13 +93,14 @@ describe('GamepadSource', () => {
     expect(sourceFor(fakePad()).poll()?.mode).toBeNull();
   });
 
-  it('maps the face buttons and bumpers', () => {
+  it('maps the face buttons, bumpers and Start', () => {
     const pad = fakePad();
-    for (const index of [0, 1, 2, 3, 4, 5]) {
+    for (const index of [0, 1, 2, 3, 4, 5, 9]) {
       press(pad, index);
     }
 
     expect(sourceFor(pad).poll()?.buttons).toEqual({
+      takeoffLand: true,
       shutter: true,
       pause: true,
       record: true,

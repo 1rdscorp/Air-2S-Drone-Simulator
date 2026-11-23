@@ -46,6 +46,7 @@ test.describe('game loop', () => {
   test('reaches the same state however the steps are grouped', async ({ page }) => {
     await open(page, '?paused=1');
     const allAtOnce = await page.evaluate(() => {
+      window.__sim?.reset({ height: 10 });
       window.__sim?.setControls({ pitch: 1, roll: 0.3, yaw: 0.5, throttle: 0.2 });
       window.__sim?.step(600);
       return window.__sim?.getState();
@@ -53,6 +54,7 @@ test.describe('game loop', () => {
 
     await open(page, '?paused=1');
     const inPieces = await page.evaluate(() => {
+      window.__sim?.reset({ height: 10 });
       window.__sim?.setControls({ pitch: 1, roll: 0.3, yaw: 0.5, throttle: 0.2 });
       for (const count of [1, 7, 100, 250, 41, 201]) {
         window.__sim?.step(count);

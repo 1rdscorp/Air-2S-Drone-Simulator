@@ -33,22 +33,34 @@ Then open http://localhost:5173 in Chrome.
 
 ## Controls
 
-The aircraft starts hovering 2 m above the ground, and the camera follows it from behind.
-For now it is a simple stand-in shape and it always flies in Normal mode (up to 15 m/s);
-take-off, landing and the Cine and Sport modes come in the next steps. The stick monitor
-in the bottom-right corner shows what the simulator reads from your keyboard or gamepad.
+The aircraft starts on the ground with the motors off. Press **T** to take off: it climbs
+to 1.2 m and hovers. Fly with the keys below and press **T** again to land. The line at
+the bottom of the screen always says what the aircraft is doing and which key comes next.
+
+For now the aircraft is a simple stand-in shape, and the camera follows it from behind.
+The stick monitor in the bottom-right corner shows what the simulator reads from your
+keyboard or gamepad.
 
 The keyboard acts as two sticks. In stick mode 2, the usual default:
 
 | Key | What it does |
 |-----|--------------|
+| T | Take off; in the air: land; during a landing: cancel it |
 | W / S | Left stick up / down: climb / descend |
 | A / D | Left stick left / right: turn left / right |
 | Arrow up / down | Right stick up / down: fly forward / backward |
 | Arrow left / right | Right stick left / right: fly left / right |
-| R / F | Gimbal up / down |
-| 1 / 2 / 3 | Cine / Normal / Sport mode (shown, but no effect on flight yet) |
-| H, Space, C, B, Z, X | Return to home, flight pause, record, photo, C1, C2 (shown, but no effect yet) |
+| 1 / 2 / 3 | Cine (5 m/s) / Normal (15 m/s) / Sport (19 m/s) mode |
+| Space | Flight pause: stops an automatic take-off or landing |
+| K | The stick command (both sticks down and inward). On the ground: starts or stops the motors. Held for 2 seconds in the air: cuts the motors, and the aircraft falls |
+| R / F | Gimbal up / down (shown, but no effect yet) |
+| H, C, B, Z, X | Return to home, record, photo, C1, C2 (shown, but no effect yet) |
+
+There are two ways to take off and to land, as on the real aircraft:
+
+- **Automatic:** T takes off and T lands. The motors stop by themselves after touchdown.
+- **By hand:** K starts the motors, then W lifts off. To land, descend with S until it
+  stands on the ground and keep S held for 3 seconds; the motors then stop.
 
 A standard game controller (Xbox, PlayStation and similar) works too. Press any button on
 it once so the browser can see it.
@@ -58,6 +70,7 @@ it once so the browser can see it.
 | Left / right stick | The two control sticks |
 | Right / left trigger | Gimbal up / down |
 | D-pad left / up / right | Cine / Normal / Sport mode |
+| Start | Take off / land |
 | Y, B, X, A | Return to home, flight pause, record, photo |
 | Left / right bumper | Custom buttons C1 / C2 |
 

@@ -13,7 +13,14 @@ const INFO: DebugInfo = {
   timeScale: 1,
   paused: false,
   inputSource: 'Keyboard',
-  drone: { height: 12.04, speed: 14.96, climbRate: 0, headingDeg: 45.2, onGround: false },
+  drone: {
+    phase: 'flying',
+    height: 12.04,
+    speed: 14.96,
+    climbRate: 0,
+    headingDeg: 45.2,
+    onGround: false,
+  },
   params: DEFAULT_PARAMS,
 };
 
@@ -71,9 +78,9 @@ describe('formatDebugText', () => {
 });
 
 describe('formatDrone', () => {
-  it('shows height, speed, climb rate and heading', () => {
-    expect(formatDrone(INFO.drone)).toBe('12.0 m · 15.0 m/s · climb +0.0 m/s · 045°');
-    expect(formatDebugText(INFO)).toMatch(/Drone\s+12\.0 m · 15\.0 m\/s/);
+  it('shows what the aircraft is doing, its height, speed, climb rate and heading', () => {
+    expect(formatDrone(INFO.drone)).toBe('flying · 12.0 m · 15.0 m/s · climb +0.0 m/s · 045°');
+    expect(formatDebugText(INFO)).toMatch(/Drone\s+flying · 12\.0 m · 15\.0 m\/s/);
   });
 
   it('marks climbing and descending clearly, and never shows minus zero', () => {
@@ -93,10 +100,19 @@ describe('formatDrone', () => {
     expect(formatDrone({ ...base, headingDeg: 270 })).toContain('270°');
   });
 
-  it('says when the aircraft stands on the ground', () => {
-    const landed = { height: 0, speed: 0, climbRate: 0, headingDeg: 0, onGround: true };
+  it('names every flight phase', () => {
+    const onGround = { height: 0, speed: 0, climbRate: 0, headingDeg: 0, onGround: true };
 
-    expect(formatDrone(landed)).toBe('0.0 m · 0.0 m/s · climb +0.0 m/s · 000° · on the ground');
+    expect(formatDrone({ ...onGround, phase: 'motorsOff' })).toMatch(/^motors off · 0\.0 m/);
+    expect(formatDrone({ ...onGround, phase: 'idle' })).toMatch(/^motors on · /);
+    expect(formatDrone({ ...INFO.drone, phase: 'takingOff' })).toMatch(/^taking off · /);
+    expect(formatDrone({ ...INFO.drone, phase: 'landing' })).toMatch(/^landing · /);
+  });
+
+  it('says "falling" when the motors are off in the air', () => {
+    const falling = { ...INFO.drone, phase: 'motorsOff' as const, climbRate: -18 };
+
+    expect(formatDrone(falling)).toMatch(/^falling · 12\.0 m · .* climb −18\.0 m\/s/);
   });
 });
 

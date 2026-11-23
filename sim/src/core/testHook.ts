@@ -1,4 +1,4 @@
-import type { ControlFrame, StickMode, StickPositions } from '../input/types';
+import type { ButtonId, ControlFrame, StickMode, StickPositions } from '../input/types';
 import type { SimParams } from './params';
 import type { SimState } from './simulation';
 
@@ -13,10 +13,10 @@ export interface SimSnapshot extends SimState {
   headingDeg: number;
 }
 
-/** Stick positions a test can set directly. Anything left out is centred. */
+/** Stick positions and buttons a test can set directly. Anything left out is centred or released. */
 export type ScriptedControls = Partial<
   Pick<ControlFrame, 'roll' | 'pitch' | 'yaw' | 'throttle' | 'gimbal' | 'mode' | 'connected'>
->;
+> & { buttons?: Partial<Record<ButtonId, boolean>> };
 
 export interface SimStatsSnapshot {
   fps: number;
@@ -60,8 +60,11 @@ export interface SimHook {
   resume(): void;
   /** Runs exactly `count` simulation steps (default 1) and draws a frame. Works while paused. */
   step(count?: number): void;
-  /** Puts the aircraft back where it started. */
-  reset(): void;
+  /**
+   * Puts the aircraft back at the start: on the ground with the motors off.
+   * With `height`, it starts hovering at that many metres instead.
+   */
+  reset(options?: { height?: number }): void;
   /**
    * Flies with these stick positions instead of the pilot's, until called with `null`.
    * Values go straight to the flight controller: no stick mode, deadzone or expo.

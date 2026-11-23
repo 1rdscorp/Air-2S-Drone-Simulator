@@ -1,4 +1,16 @@
-import { START_HEIGHT } from './air2s.config';
+/**
+ * What the aircraft is doing.
+ *
+ *   motorsOff  Motors stopped. On the ground this is the resting state; in the air it
+ *              means the motors were cut and the aircraft is falling.
+ *   idle       Standing on the ground with the motors running, ready to lift off.
+ *              This is also where a landing by hand ends.
+ *   takingOff  Automatic take-off: climbing to hover height.
+ *   flying     Normal flight under the pilot's sticks.
+ *   landing    Automatic landing: descending until touchdown, then the motors stop.
+ */
+export const FLIGHT_PHASES = ['motorsOff', 'idle', 'takingOff', 'flying', 'landing'] as const;
+export type FlightPhase = (typeof FLIGHT_PHASES)[number];
 
 /**
  * Everything the simulation knows about the aircraft at one moment. Plain numbers and
@@ -7,6 +19,7 @@ import { START_HEIGHT } from './air2s.config';
  * Axes: x is east, y is up, z is south (north is -z). Units: metres, seconds, radians.
  */
 export interface DroneState {
+  phase: FlightPhase;
   /** Position. `y` is the height of the aircraft's underside, so 0 means standing on the ground. */
   x: number;
   y: number;
@@ -34,6 +47,15 @@ export interface DroneState {
   /** Height hold: true once the hover height is fixed, and what it is. */
   altitudeHoldActive: boolean;
   holdY: number;
+  /** Seconds the stick command (both sticks down and inward or outward) has been held. */
+  stickCommandSeconds: number;
+  /** False after the stick command has acted, until the sticks have been let go again. */
+  stickCommandArmed: boolean;
+  /** Seconds the throttle has been held fully down while standing with the motors running. */
+  throttleDownSeconds: number;
+  /** Whether the take-off / landing and the flight-pause buttons were down in the last step. */
+  takeoffButtonWasDown: boolean;
+  pauseButtonWasDown: boolean;
 }
 
 /** The part of the state that is needed to draw the aircraft. */
@@ -46,11 +68,12 @@ export interface DronePose {
   roll: number;
 }
 
-/** The aircraft at the start: hovering at rest above the origin, facing north. */
+/** The aircraft at the start: standing on the ground at the origin, motors off, facing north. */
 export function createDroneState(): DroneState {
   return {
+    phase: 'motorsOff',
     x: 0,
-    y: START_HEIGHT,
+    y: 0,
     z: 0,
     vx: 0,
     vy: 0,
@@ -61,12 +84,30 @@ export function createDroneState(): DroneState {
     yawRate: 0,
     pitchRate: 0,
     rollRate: 0,
-    onGround: false,
-    holdActive: true,
+    onGround: true,
+    holdActive: false,
     holdX: 0,
     holdZ: 0,
+    altitudeHoldActive: false,
+    holdY: 0,
+    stickCommandSeconds: 0,
+    stickCommandArmed: true,
+    throttleDownSeconds: 0,
+    takeoffButtonWasDown: false,
+    pauseButtonWasDown: false,
+  };
+}
+
+/** The aircraft already in the air: hovering at rest at `height` metres above the origin. */
+export function createFlyingState(height: number): DroneState {
+  return {
+    ...createDroneState(),
+    phase: 'flying',
+    y: height,
+    onGround: false,
+    holdActive: true,
     altitudeHoldActive: true,
-    holdY: START_HEIGHT,
+    holdY: height,
   };
 }
 
