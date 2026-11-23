@@ -8,18 +8,40 @@ work. Reusable prompts are in `docs/PROMPTS.md`.
 
 ## Status
 
-No code exists yet. Progress is the checklist in `docs/PLAN.md` section 6.
+Progress is the checklist in `docs/PLAN.md` section 6. Decisions taken along the way are
+in its decision log (section 9).
 
 ## Layout
 
-- `sim/` — web simulator: TypeScript (strict), Three.js, Vite. Created in Step 01.
+- `sim/` — web simulator: TypeScript (strict), Three.js, Vite.
+  - `sim/src/` — app code; unit tests sit next to the code as `*.test.ts`.
+  - `sim/e2e/` — Playwright smoke tests.
 - `rc-bridge/` — Android app for the Smart Controller (Kotlin, DJI Mobile SDK v4). Created in Step 22.
 - `docs/` — plan, prompts, protocol, setup guides.
+- `.github/workflows/` — `ci.yml` (every push) and `deploy.yml` (GitHub Pages, from `main`).
 
 ## Commands
 
-None yet. Step 01 creates them and must list them here (dev server, lint, type-check,
-unit tests, smoke tests, build).
+Run all of these inside `sim/` (Node 22, `npm ci` first).
+
+| Command | What it does |
+|---------|--------------|
+| `npm run dev` | Dev server with live reload at http://localhost:5173 |
+| `npm run lint` | ESLint and Prettier check (`npm run format` fixes formatting) |
+| `npm run typecheck` | TypeScript, no output files |
+| `npm test` | Unit tests (Vitest); `npm run test:watch` while working |
+| `npm run e2e` | Builds, then runs the Playwright smoke test against the production build |
+| `npm run build` | Production build into `sim/dist/` |
+| `npm run check` | Lint, type-check, unit tests, build and smoke test in one go |
+
+Notes for headless and cloud sessions:
+
+- `@playwright/test` is pinned to the version whose Chromium is preinstalled in Claude
+  cloud sessions. If the versions drift apart, set `PW_CHROMIUM_PATH` to the installed
+  browser instead of downloading another one.
+- Headless Chromium draws WebGL in software (`--enable-unsafe-swiftshader`). Pictures are
+  correct but slow, so never judge frame rate there.
+- For screenshots of work in progress, start `npm run dev` and drive it with Playwright.
 
 ## Working rules
 
@@ -45,6 +67,8 @@ unit tests, smoke tests, build).
   `dispose()`.
 - All Air 2S numbers live in one config file, each with a comment naming its source.
 - World content is procedural and seeded. No DJI logos, artwork or copied screen designs.
+- Do not draw long lines with line geometry (`GridHelper`, `Line`, `LineSegments`): the
+  software renderer misplaces lines that pass behind the camera. Use textures or meshes.
 - Secrets (the DJI app key) come from a local file or CI secret and are never committed.
 
 ## Safety
