@@ -114,6 +114,14 @@ To change which stick does what, add the stick mode to the address:
 The same settings can be put in the address, for example
 `http://localhost:5173/?debug=1&paused=1&speed=0.5`.
 
+## Controller check
+
+Before the DJI Smart Controller can be linked, a short test with the real controller has
+to show how it can talk to a PC. The steps are in
+[docs/CONTROLLER_CHECK.md](docs/CONTROLLER_CHECK.md); the test page is
+https://1rdscorp.github.io/Air-2S-Drone-Simulator/controller-check.html. Switch the
+aircraft off before you start.
+
 - [Project plan and roadmap](docs/PLAN.md)
 - [Prompts for building it step by step](docs/PROMPTS.md)
 

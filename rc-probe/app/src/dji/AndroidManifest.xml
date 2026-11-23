@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Added to the main manifest in the build that contains the DJI Mobile SDK v4. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- What DJI's sample app asks for before it registers with DJI. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="false" />
+    <!-- The SDK's own manifest marks this as required; a probe should install anywhere. -->
+    <uses-feature
+        android:name="android.hardware.usb.accessory"
+        android:required="false"
+        xmlns:tools="http://schemas.android.com/tools"
+        tools:replace="android:required" />
+
+    <application android:name=".ProbeApplication">
+
+        <uses-library
+            android:name="org.apache.http.legacy"
+            android:required="false" />
+
+        <!-- The key comes from a CI secret or a local file; it is never in the repository. -->
+        <meta-data
+            android:name="com.dji.sdk.API_KEY"
+            android:value="${djiAppKey}" />
+
+        <!-- The SDK reaches the controller's radio as a USB accessory, as in DJI's sample. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                android:resource="@xml/accessory_filter" />
+        </activity>
+    </application>
+
+</manifest>

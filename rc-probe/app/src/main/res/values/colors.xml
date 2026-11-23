@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#0D1117</color>
+    <color name="card">#161B22</color>
+    <color name="text">#E6EDF3</color>
+    <color name="text_dim">#9DA7B3</color>
+    <color name="pass">#2EA043</color>
+    <color name="fail">#DA3633</color>
+    <color name="waiting">#B8860B</color>
+    <color name="not_run">#57606A</color>
+    <color name="warning">#B3261E</color>
+</resources>

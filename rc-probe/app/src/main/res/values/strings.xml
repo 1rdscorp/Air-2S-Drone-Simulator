@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RC Probe</string>
+    <string name="safety">SAFETY: switch the aircraft OFF before you start, and leave it off. This controller commands a switched-on aircraft whatever app is on its screen.</string>
+    <string name="input_title">1 · Sticks as an Android input device</string>
+    <string name="input_button">Test the sticks (10 seconds)</string>
+    <string name="ble_title">2 · Bluetooth LE advertising</string>
+    <string name="ble_button">Start Bluetooth test</string>
+    <string name="dji_title">3 · DJI SDK stick values, aircraft off</string>
+    <string name="dji_button">Start DJI SDK test</string>
+    <string name="copy_button">Copy report</string>
+    <string name="report_copied">Report copied</string>
+    <string name="report_label">RC Probe report</string>
+    <string name="aircraft_warning">AN AIRCRAFT IS CONNECTED. SWITCH IT OFF NOW.</string>
+</resources>
