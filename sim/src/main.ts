@@ -1,5 +1,7 @@
 import './style.css';
 import { ACESFilmicToneMapping, PerspectiveCamera, Vector3, WebGLRenderer } from 'three';
+import { AudioEngine, soundLabelText } from './audio/audioEngine';
+import { type Listener, listenerAt, soundFrame, toneForEvent } from './audio/soundModel';
 import {
   CAMERA_MODE_NAMES,
   cameraLabelText,
@@ -45,6 +47,7 @@ function start(): void {
   const statusBadge = requireElement('#status-badge');
   const flightStatus = requireElement('#flight-status');
   const cameraLabel = requireElement('#camera-label');
+  const soundLabel = requireElement('#sound-label');
   requireElement('#build-label').textContent = `Air 2S Drone Simulator · v${__APP_VERSION__}`;
 
   const { params, warnings } = parseParams(window.location.search);
@@ -114,6 +117,41 @@ function start(): void {
   const hud = new Hud(requireElement('#hud'));
   const toasts = new ToastList();
 
+  // Sound. Browsers allow it only after a key press or a click, so it starts with the
+  // first one. It follows the simulation and never influences it.
+  const audio = new AudioEngine({ volume: params.volume, muted: !params.sound });
+  const unlockSound = (): void => {
+    audio.unlock();
+  };
+  window.addEventListener('keydown', unlockSound, { capture: true });
+  window.addEventListener('pointerdown', unlockSound, { capture: true });
+  document.addEventListener('visibilitychange', () => {
+    audio.setHidden(document.hidden);
+  });
+
+  let shownSoundLabel = '';
+  const refreshSoundLabel = (): void => {
+    const text = soundLabelText(audio.state, audio.muted);
+    if (text !== shownSoundLabel) {
+      shownSoundLabel = text;
+      soundLabel.textContent = text;
+    }
+  };
+
+  /** Where the camera hears the aircraft from. The drone camera sits on the aircraft itself. */
+  const cameraRight = new Vector3();
+  const ONBOARD: Listener = { distance: 0.7, pan: 0 };
+  const listener = (pose: { x: number; y: number; z: number }): Listener => {
+    if (cameraRig.mode === 'fpv') {
+      return ONBOARD;
+    }
+    cameraRight.setFromMatrixColumn(camera.matrixWorld, 0);
+    return listenerAt(
+      [pose.x - camera.position.x, pose.y - camera.position.y, pose.z - camera.position.z],
+      [cameraRight.x, cameraRight.y, cameraRight.z],
+    );
+  };
+
   // Simulation and loop. The simulation only changes in `step`; `render` only reads it.
   const sim = new Simulation({ gimbalUpward: params.gimbalUpward });
   /** Real time since the previous display frame; the chase camera eases with it. */
@@ -123,6 +161,10 @@ function start(): void {
       sim.step(dt, currentControls());
       sim.drainEvents((event) => {
         toasts.push(flightMessage(event), (tick + 1) * dt);
+        const tone = toneForEvent(event);
+        if (tone) {
+          audio.playTone(tone);
+        }
       });
     },
     render: (alpha) => {
@@ -135,6 +177,8 @@ function start(): void {
       aimSunAt(sun, pose.x, pose.y, pose.z);
       renderer.render(scene, camera);
       hud.update(hudValues(sim.state, currentControls().mode), toasts.active(loop.simTime));
+      audio.setPaused(loop.paused);
+      audio.update(soundFrame(sim.state, listener(pose)));
     },
   });
   loop.paused = params.paused;
@@ -251,6 +295,10 @@ function start(): void {
     resetFlight: () => {
       resetFlight();
     },
+    toggleSound: () => {
+      audio.muted = !audio.muted;
+      refreshSoundLabel();
+    },
     isPaused: () => loop.paused,
   });
 
@@ -323,6 +371,7 @@ function start(): void {
       raw: { ...input.raw },
       shaped: { ...input.shaped },
     }),
+    getAudio: () => audio.snapshot(),
     setCamera,
     getCamera: () => {
       const direction = camera.getWorldDirection(new Vector3());
@@ -351,6 +400,7 @@ function start(): void {
     loop.frame(elapsed);
     stickMonitor.update(input);
     refreshFlightStatus();
+    refreshSoundLabel();
     overlay.update(elapsed, debugInfo);
 
     // Lets tests wait until something has really been drawn.

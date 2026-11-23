@@ -1,3 +1,4 @@
+import type { AudioSnapshot } from '../audio/audioEngine';
 import type { CameraMode } from '../camera/cameraRig';
 import type { ButtonId, ControlFrame, StickMode, StickPositions } from '../input/types';
 import type { SimParams } from './params';
@@ -92,6 +93,8 @@ export interface SimHook {
   setCamera(mode: CameraMode): void;
   /** Where the view is right now. */
   getCamera(): CameraSnapshot;
+  /** What the sound is doing right now, with the loudness measured at the output. */
+  getAudio(): AudioSnapshot;
 }
 
 declare global {

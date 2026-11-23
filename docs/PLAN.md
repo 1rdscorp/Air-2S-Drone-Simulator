@@ -402,6 +402,11 @@ and add a line to the decision log (section 9) if something changed.
   from distance and line of sight; weak-signal warnings; failsafe RTH.
 - [ ] **30 — Audio** — synthesised motor sound by thrust and distance, wind noise,
   warning tones and spoken-style prompts, ambient sound per environment.
+  - First part done on 2026-11-23, brought forward at the owner's request: motor sound by
+    thrust and distance, air rushing past by speed, tones for flight events and warnings,
+    sound on / off and loudness.
+  - Still open: spoken-style prompts; sound of the surroundings (needs the environments,
+    Steps 12 to 16); wind (Step 19); battery warnings (Step 26); obstacle beeps (Step 27).
 - [ ] **31 — Intelligent modes (optional)** — QuickShots-style automatic moves (pull
   away, rocket, circle, helix), point-of-interest orbit, cruise control.
 
@@ -522,6 +527,13 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 04 — The Bluetooth probe goes one step further than "can it advertise": it also sends a 20-byte test packet 50 times per second, and the check page on the PC connects and counts them — advertising alone would not show whether the link is fast enough to fly with (at least 40 packets per second). The packet is for this measurement only; the real protocol is Step 21.
 - 2026-11-23 — step 04 — Android build tools are pinned: Gradle 8.14.3, Android Gradle plugin 8.13.2, Kotlin 2.2.21, target Android 11 (API 30), minimum Android 7.0 — DJI's SDK v4 is old and newer tools are not guaranteed to work with it. With target 30 the two old Bluetooth permissions are enough on every Android version.
 - 2026-11-23 — step 04 — The check page is hand-written in old-style JavaScript and excluded from the code formatter; a unit test checks that it stays that way — part of the check is opening it in the controller's own browser, which is years old.
+- 2026-11-23 — step 30 — The first part of the sound was built early, at the owner's request, and the step stays open — the rest belongs to things that do not exist yet (surroundings, wind, battery, obstacles) and is listed under Step 30.
+- 2026-11-23 — step 30 — All sound is generated in the browser; there are no recordings — nothing to license, nothing to download, and it follows the flight exactly.
+- 2026-11-23 — step 30 — Motor sound: each motor plays the note of its blades passing, 197 Hz in a hover (two blades at 5900 turns per minute), with overtones and a hiss. The note rises with thrust: in a climb, when tilted, at speed; it falls in a descent. The four motors differ slightly, which gives the buzz, and shift against each other when the aircraft tips or turns. Motor speeds are not published by DJI; the hover speed is worked out from weight and propeller size, idle (2200) and top speed (9000) are chosen. Change `PROPULSION_CHOSEN` and `SOUND_TUNING` if it does not sound right.
+- 2026-11-23 — step 30 — The listener is the camera: the aircraft is quieter and duller from farther away and is heard from the side it is on. In the drone camera view it is heard from on board.
+- 2026-11-23 — step 30 — Tones: rising for take-off, falling for landing, one note per flight mode (higher for faster modes), harsh notes for the emergency stop and a lost controller, a dull knock for touching and hitting the ground. Starting and stopping the motors has no tone; the motors themselves are heard running up and down.
+- 2026-11-23 — step 30 — Sound starts with the first key press or click, because browsers do not allow it earlier; a label says so. M switches it off and on; `?sound=0` starts without it and `?volume=` sets the loudness (default 0.7) until the settings screen exists (Step 34). It is silent while paused and while the page is in the background.
+- 2026-11-23 — step 30 — The sound was checked by measuring, not by ear: a browser test measures the loudness and the strongest frequency at the output, and `sim/scripts/render-sound.mjs` renders a test flight to a file and lists what is in it — the build session cannot play sound. How it sounds to a person is for the owner to judge.
 
 ---
 

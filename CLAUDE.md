@@ -70,13 +70,15 @@ Notes for headless and cloud sessions:
 
 - Address settings: `?debug=1` (overlay), `?paused=1`, `?speed=0.5` (0.05 to 8),
   `?stickmode=1|2|3`, `?expo=0..1`, `?sticks=0` (hide the stick monitor),
-  `?camera=chase|fpv|free`, `?gimbalup=1` (camera may tilt up to +24°), plus `env`,
+  `?camera=chase|fpv|free`, `?gimbalup=1` (camera may tilt up to +24°), `?sound=0`
+  (start muted), `?volume=0..1`, plus `env`,
   `time`, `seed`, `quality`, which are read now and used from Steps 10, 17, 11, 20.
-- Keys: `` ` `` or F2 overlay, I stick monitor, V next camera view, P pause, `.` one step
-  while paused, `-` and `=` speed, Backspace puts the aircraft back at the start.
+- Keys: `` ` `` or F2 overlay, I stick monitor, V next camera view, M sound, P pause, `.`
+  one step while paused, `-` and `=` speed, Backspace puts the aircraft back at the start.
 - `window.__sim` (see `sim/src/core/testHook.ts`): `tick`, `time`, `paused`, `timeScale`,
   `pause()`, `resume()`, `step(n)`, `reset({ height? })`, `setControls({...} | null)`,
-  `setCamera(mode)`, `getCamera()`, `getState()`, `getStats()`, `getInput()`, `params`.
+  `setCamera(mode)`, `getCamera()`, `getState()`, `getStats()`, `getInput()`, `getAudio()`,
+  `params`.
 - The aircraft starts on the ground with the motors off. For an exact flight test: open
   with `?paused=1`, call `__sim.reset({ height: 20 })` to start in a hover, then
   `__sim.setControls({ pitch: 1, mode: 'S', buttons: { takeoffLand: true } })`,
@@ -90,6 +92,23 @@ Notes for headless and cloud sessions:
   page loads; see `sim/e2e/input.spec.ts`.
 - For a repeatable screenshot or test: open with `?paused=1`, call `__sim.step(n)`, then
   read `__sim.getState()` or take the picture.
+
+## Sound
+
+- All sound is generated in code; there are no sound files. `sim/src/audio/soundModel.ts`
+  works out from the simulation state what should be heard (motor notes, loudness, rushing
+  air, tones for flight events) and is plain, unit-tested code. `audioEngine.ts` plays it
+  with Web Audio and only adds the smooth changes. Sound never changes the simulation.
+- Browsers allow sound only after a key press or a click, so the engine starts on the
+  first one. It is silent while paused, while muted and while the page is in the background.
+- Nobody can listen in a headless session. Check sound by measuring it:
+  - `__sim.getAudio()` gives what the engine aims for and, once sound runs, the loudness
+    and the strongest frequency measured at the output (see `sim/e2e/audio.spec.ts`).
+  - With `npm run dev` running, `node scripts/render-sound.mjs flight.wav` renders a
+    scripted flight to a sound file and prints its loudness and strongest note second by
+    second. Send the file to the owner to listen to; that is the "screenshot" for sound.
+- A new sound belongs to the step that brings the thing it is for: battery warnings to
+  Step 26, obstacle beeps to Step 27, wind to Step 19, surroundings to the environments.
 
 ## Picture tests
 
@@ -138,8 +157,8 @@ scene is mostly flat sky and ground, so even a clearly different view changes we
   `dispose()`.
 - All Air 2S numbers live in `sim/src/drone/air2s.config.ts`: published values with their
   source in `AIR_2S_SPECS`; chosen and tuned values (not published) separately in
-  `CINE_CHOSEN`, `MODE_TUNING` and `FLIGHT_PROCEDURE`. Flight feel is changed there, never
-  in `flightModel.ts`.
+  `CINE_CHOSEN`, `MODE_TUNING`, `FLIGHT_PROCEDURE` and `PROPULSION_CHOSEN` (motor speeds,
+  for the sound). Flight feel is changed there, never in `flightModel.ts`.
 - What the aircraft is doing is its flight phase (motors off, idle, taking off, flying,
   landing). `sim/src/drone/flightPhase.ts` decides the phase from sticks and buttons;
   `flightModel.ts` moves the aircraft for that phase.

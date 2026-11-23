@@ -8,8 +8,8 @@
  *                  themselves could not be opened from the build session.
  *   MODE_TUNING    Values DJI does not publish (how quickly the aircraft reacts). They
  *                  are tuned by feel and by the tests, and are the ones to change when
- *                  the flight does not feel right. The same goes for CINE_CHOSEN and
- *                  FLIGHT_PROCEDURE.
+ *                  the flight does not feel right. The same goes for CINE_CHOSEN,
+ *                  FLIGHT_PROCEDURE and PROPULSION_CHOSEN.
  *
  * Sources:
  *   [support]  DJI support page, https://www.dji.com/support/product/air-2s
@@ -104,6 +104,25 @@ export const AIR_2S_SPECS = {
     voltage: 11.55,
     energyWh: 40.42,
   },
+} as const;
+
+/**
+ * Propellers and motor speeds, used for the motor sound. DJI publishes no motor speeds.
+ *
+ * The hover speed is worked out, not measured: four 183 mm (7.2 inch) propellers carrying
+ * the 595 g take-off weight need about 98 turns per second each by the usual propeller
+ * formula (thrust = 0.11 x air density x turns per second squared x diameter to the
+ * fourth). Idle and top speed are chosen so that the sound has a sensible range.
+ */
+export const PROPULSION_CHOSEN = {
+  /** Blades per propeller: the Air 2S has two-blade folding propellers. */
+  blades: 2,
+  /** Motor speed in turns per minute: standing on the ground with the motors running. */
+  idleRpm: 2200,
+  /** Hovering at take-off weight. */
+  hoverRpm: 5900,
+  /** The most the motors give. */
+  maxRpm: 9000,
 } as const;
 
 /**
