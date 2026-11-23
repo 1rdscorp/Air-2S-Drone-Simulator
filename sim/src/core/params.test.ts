@@ -94,6 +94,16 @@ describe('parseParams', () => {
     expect(parseParams('?expo=-0.1').params.expo).toBe(DEFAULT_PARAMS.expo);
   });
 
+  it('reads the camera view, and falls back to the chase camera', () => {
+    expect(parseParams('').params.camera).toBe('chase');
+    expect(parseParams('?camera=fpv').params.camera).toBe('fpv');
+    expect(parseParams('?camera=FREE').params.camera).toBe('free');
+
+    const { params, warnings } = parseParams('?camera=helicopter');
+    expect(params.camera).toBe('chase');
+    expect(warnings).toHaveLength(1);
+  });
+
   it('ignores settings it does not know', () => {
     const { params, warnings } = parseParams('?utm_source=x&foo=bar');
 

@@ -1,14 +1,14 @@
 import './style.css';
-import { ACESFilmicToneMapping, PerspectiveCamera, WebGLRenderer } from 'three';
-import { placeFollowCamera } from './camera/followCamera';
+import { ACESFilmicToneMapping, PerspectiveCamera, Vector3, WebGLRenderer } from 'three';
+import { CAMERA_MODE_NAMES, cameraLabelText, type CameraMode, CameraRig } from './camera/cameraRig';
 import { aimSunAt, createBaseScene } from './core/baseScene';
 import { FrameStats } from './core/frameStats';
 import { GameLoop } from './core/gameLoop';
 import { parseParams } from './core/params';
 import { Simulation } from './core/simulation';
 import { installTestHook, type ScriptedControls } from './core/testHook';
+import { animateRotors, applyPose, createDroneModel } from './drone/droneModel';
 import { headingDegrees, horizontalSpeed } from './drone/droneState';
-import { applyPose, createDroneStandIn } from './drone/standInMesh';
 import { GamepadSource } from './input/gamepadSource';
 import { InputManager } from './input/inputManager';
 import { KeyboardSource } from './input/keyboardSource';
@@ -16,6 +16,7 @@ import { type ControlFrame, neutralFrame, noButtonsPressed } from './input/types
 import { bindDebugKeys, nextTimeScale } from './ui/debugControls';
 import { type DebugInfo, DebugOverlay, formatTimeScale } from './ui/debugOverlay';
 import { flightStatusText, takeoffButtonName } from './ui/flightStatus';
+import { bindFreeCameraControls } from './ui/freeCameraControls';
 import { StickMonitor } from './ui/stickMonitor';
 
 const MAX_PIXEL_RATIO = 2;
@@ -33,6 +34,7 @@ function start(): void {
   const message = requireElement('#message');
   const statusBadge = requireElement('#status-badge');
   const flightStatus = requireElement('#flight-status');
+  const cameraLabel = requireElement('#camera-label');
   requireElement('#build-label').textContent = `Air 2S Drone Simulator · v${__APP_VERSION__}`;
 
   const { params, warnings } = parseParams(window.location.search);
@@ -54,10 +56,19 @@ function start(): void {
   renderer.shadowMap.enabled = true;
 
   const { scene, sun } = createBaseScene();
-  const drone = createDroneStandIn();
-  scene.add(drone);
+  const drone = createDroneModel();
+  scene.add(drone.root);
 
   const camera = new PerspectiveCamera(55, 1, 0.1, 5000);
+  const cameraRig = new CameraRig(params.camera);
+  bindFreeCameraControls(canvas, cameraRig);
+
+  /** Shows which view is in use, and what the mouse does in it. */
+  const refreshCameraLabel = (): void => {
+    cameraLabel.textContent = cameraLabelText(cameraRig.mode);
+    canvas.classList.toggle('is-free-camera', cameraRig.mode === 'free');
+  };
+  refreshCameraLabel();
 
   const resize = (): void => {
     const width = canvas.clientWidth;
@@ -90,14 +101,19 @@ function start(): void {
 
   // Simulation and loop. The simulation only changes in `step`; `render` only reads it.
   const sim = new Simulation();
+  /** Real time since the previous display frame; the chase camera eases with it. */
+  let frameSeconds = 0;
   const loop = new GameLoop({
     step: (dt) => {
       sim.step(dt, currentControls());
     },
     render: (alpha) => {
       const pose = sim.interpolate(alpha);
-      applyPose(drone, pose);
-      placeFollowCamera(camera, pose);
+      applyPose(drone.root, pose);
+      animateRotors(drone, sim.phase, loop.simTime);
+      // The drone camera looks out of the camera pod, so the pod itself must not be drawn.
+      drone.gimbal.visible = cameraRig.mode !== 'fpv';
+      cameraRig.update(camera, pose, frameSeconds);
       aimSunAt(sun, pose.x, pose.y, pose.z);
       renderer.render(scene, camera);
     },
@@ -123,6 +139,7 @@ function start(): void {
       timeScale: loop.timeScale,
       paused: loop.paused,
       inputSource: scripted ? 'Test script' : input.activeSource.label,
+      camera: CAMERA_MODE_NAMES[cameraRig.mode],
       drone: {
         phase: state.phase,
         height: state.y,
@@ -150,12 +167,22 @@ function start(): void {
   };
   refreshStatus();
 
+  /** Draws a frame right away, with every camera settled in its place. */
   const drawNow = (): void => {
+    cameraRig.snap();
+    frameSeconds = 0;
     loop.frame(0);
   };
 
   const resetFlight = (height?: number): void => {
     sim.reset(height);
+    drawNow();
+    overlay.refreshSoon();
+  };
+
+  const setCamera = (mode: CameraMode): void => {
+    cameraRig.mode = mode;
+    refreshCameraLabel();
     drawNow();
     overlay.refreshSoon();
   };
@@ -182,6 +209,11 @@ function start(): void {
     },
     toggleStickMonitor: () => {
       stickMonitor.toggle();
+    },
+    nextCamera: () => {
+      cameraRig.next();
+      refreshCameraLabel();
+      overlay.refreshSoon();
     },
     togglePause: () => {
       loop.paused = !loop.paused;
@@ -270,6 +302,21 @@ function start(): void {
       raw: { ...input.raw },
       shaped: { ...input.shaped },
     }),
+    setCamera,
+    getCamera: () => {
+      const direction = camera.getWorldDirection(new Vector3());
+      const degrees = 180 / Math.PI;
+      return {
+        mode: cameraRig.mode,
+        position: [camera.position.x, camera.position.y, camera.position.z],
+        direction: [direction.x, direction.y, direction.z],
+        free: {
+          azimuthDeg: cameraRig.azimuth * degrees,
+          elevationDeg: cameraRig.elevation * degrees,
+          distance: cameraRig.distance,
+        },
+      };
+    },
   });
 
   let lastFrameMs: number | null = null;
@@ -279,6 +326,7 @@ function start(): void {
 
     stats.record(elapsed);
     input.update(timeMs);
+    frameSeconds = elapsed;
     loop.frame(elapsed);
     stickMonitor.update(input);
     refreshFlightStatus();

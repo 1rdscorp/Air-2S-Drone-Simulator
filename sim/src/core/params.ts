@@ -1,3 +1,4 @@
+import { CAMERA_MODES, type CameraMode } from '../camera/cameraRig';
 import { DEFAULT_INPUT_SETTINGS } from '../input/inputManager';
 import { STICK_MODES, type StickMode } from '../input/types';
 import { MAX_TIME_SCALE, MIN_TIME_SCALE } from './gameLoop';
@@ -36,6 +37,8 @@ export interface SimParams {
   expo: number;
   /** Show the stick monitor at start. */
   sticks: boolean;
+  /** View at start: chase, fpv (the drone's own camera) or free. */
+  camera: CameraMode;
 }
 
 export const DEFAULT_PARAMS: Readonly<SimParams> = {
@@ -49,6 +52,7 @@ export const DEFAULT_PARAMS: Readonly<SimParams> = {
   stickMode: DEFAULT_INPUT_SETTINGS.stickMode,
   expo: DEFAULT_INPUT_SETTINGS.expo,
   sticks: true,
+  camera: 'chase',
 };
 
 export interface ParsedParams {
@@ -141,6 +145,7 @@ export function parseParams(search: string): ParsedParams {
   }
   params.expo = numberBetween('expo', 0, 1) ?? DEFAULT_PARAMS.expo;
   params.sticks = flag('sticks', DEFAULT_PARAMS.sticks);
+  params.camera = oneOf('camera', CAMERA_MODES) ?? DEFAULT_PARAMS.camera;
 
   return { params, warnings };
 }

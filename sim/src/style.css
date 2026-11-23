@@ -103,6 +103,35 @@ body {
   display: none;
 }
 
+#camera-label {
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  margin: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgb(13 17 23 / 70%);
+  color: rgb(230 237 243 / 90%);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  user-select: none;
+}
+
+#camera-label:empty {
+  display: none;
+}
+
+/* Free camera: the picture can be dragged with the mouse. */
+#view.is-free-camera {
+  cursor: grab;
+  touch-action: none;
+}
+
+#view.is-free-camera.is-dragging {
+  cursor: grabbing;
+}
+
 #stick-monitor {
   --sm-pad: 92px;
   --sm-line: rgb(255 255 255 / 22%);

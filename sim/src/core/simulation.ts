@@ -5,6 +5,7 @@ import {
   createFlyingState,
   type DronePose,
   type DroneState,
+  type FlightPhase,
 } from '../drone/droneState';
 import { stepDrone } from '../drone/flightModel';
 import type { ControlFrame } from '../input/types';
@@ -40,6 +41,11 @@ export class Simulation {
   /** A copy of the current state, safe to keep and compare. */
   snapshot(): SimState {
     return { ...this.current };
+  }
+
+  /** What the aircraft is doing right now. */
+  get phase(): FlightPhase {
+    return this.current.phase;
   }
 
   /**

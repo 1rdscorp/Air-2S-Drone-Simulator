@@ -1,3 +1,4 @@
+import type { CameraMode } from '../camera/cameraRig';
 import type { ButtonId, ControlFrame, StickMode, StickPositions } from '../input/types';
 import type { SimParams } from './params';
 import type { SimState } from './simulation';
@@ -40,6 +41,17 @@ export interface InputSnapshot {
   shaped: StickPositions;
 }
 
+/** Where the view is right now. */
+export interface CameraSnapshot {
+  mode: CameraMode;
+  /** Camera position in the world, [x, y, z] in metres. */
+  position: [number, number, number];
+  /** Unit vector the camera looks along, [x, y, z]. */
+  direction: [number, number, number];
+  /** Free camera settings: direction from the aircraft in degrees, height angle in degrees, distance in metres. */
+  free: { azimuthDeg: number; elevationDeg: number; distance: number };
+}
+
 /**
  * `window.__sim`: a small remote control for automated tests and for the browser console.
  * It drives the same loop the app uses; it is not a second way to run the simulation.
@@ -76,6 +88,10 @@ export interface SimHook {
   getStats(): SimStatsSnapshot;
   /** A copy of the current controls and which device they come from. */
   getInput(): InputSnapshot;
+  /** Switches the view and draws a frame. */
+  setCamera(mode: CameraMode): void;
+  /** Where the view is right now. */
+  getCamera(): CameraSnapshot;
 }
 
 declare global {

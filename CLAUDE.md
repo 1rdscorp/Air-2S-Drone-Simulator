@@ -15,7 +15,7 @@ in its decision log (section 9).
 
 - `sim/` — web simulator: TypeScript (strict), Three.js, Vite.
   - `sim/src/` — app code; unit tests sit next to the code as `*.test.ts`.
-  - `sim/e2e/` — Playwright smoke tests.
+  - `sim/e2e/` — Playwright browser tests; `*-snapshots/` folders hold reference pictures.
 - `rc-bridge/` — Android app for the Smart Controller (Kotlin, DJI Mobile SDK v4). Created in Step 22.
 - `docs/` — plan, prompts, protocol, setup guides.
 - `.github/workflows/` — `ci.yml` (every push) and `deploy.yml` (GitHub Pages, from `main`).
@@ -50,13 +50,14 @@ Notes for headless and cloud sessions:
 ## Debug tools
 
 - Address settings: `?debug=1` (overlay), `?paused=1`, `?speed=0.5` (0.05 to 8),
-  `?stickmode=1|2|3`, `?expo=0..1`, `?sticks=0` (hide the stick monitor), plus `env`,
-  `time`, `seed`, `quality`, which are read now and used from Steps 10, 17, 11, 20.
-- Keys: `` ` `` or F2 overlay, I stick monitor, P pause, `.` one step while paused, `-`
-  and `=` speed, Backspace puts the aircraft back at the start.
+  `?stickmode=1|2|3`, `?expo=0..1`, `?sticks=0` (hide the stick monitor),
+  `?camera=chase|fpv|free`, plus `env`, `time`, `seed`, `quality`, which are read now and
+  used from Steps 10, 17, 11, 20.
+- Keys: `` ` `` or F2 overlay, I stick monitor, V next camera view, P pause, `.` one step
+  while paused, `-` and `=` speed, Backspace puts the aircraft back at the start.
 - `window.__sim` (see `sim/src/core/testHook.ts`): `tick`, `time`, `paused`, `timeScale`,
   `pause()`, `resume()`, `step(n)`, `reset({ height? })`, `setControls({...} | null)`,
-  `getState()`, `getStats()`, `getInput()`, `params`.
+  `setCamera(mode)`, `getCamera()`, `getState()`, `getStats()`, `getInput()`, `params`.
 - The aircraft starts on the ground with the motors off. For an exact flight test: open
   with `?paused=1`, call `__sim.reset({ height: 20 })` to start in a hover, then
   `__sim.setControls({ pitch: 1, mode: 'S', buttons: { takeoffLand: true } })`,
@@ -70,6 +71,19 @@ Notes for headless and cloud sessions:
   page loads; see `sim/e2e/input.spec.ts`.
 - For a repeatable screenshot or test: open with `?paused=1`, call `__sim.step(n)`, then
   read `__sim.getState()` or take the picture.
+
+## Picture tests
+
+Some browser tests compare the 3D view with a reference picture (`toHaveScreenshot`), for
+example `sim/e2e/camera.spec.ts`. They hide the text overlays first and allow 1 % of the
+pixels to differ.
+
+- When such a test fails, look at the actual picture before anything else. If the view
+  changed by mistake, fix the code.
+- Only when the view was meant to change, renew the references inside `sim/` with
+  `npx playwright test --update-snapshots`, look at every new picture, and commit them.
+- Keep everything in a pictured scene dependent only on simulation state and simulated
+  time, never on real time; otherwise the picture is different on every run.
 
 ## Working rules
 
@@ -108,6 +122,9 @@ Notes for headless and cloud sessions:
   right; it is not wrapped at 360°. Positive pitch is nose down, positive roll is right
   side down.
 - World content is procedural and seeded. No DJI logos, artwork or copied screen designs.
+- The aircraft shape is built in code in `sim/src/drone/droneModel.ts`. The views are in
+  `sim/src/camera/cameraRig.ts`; a camera reads the aircraft's pose and never changes the
+  simulation.
 - Do not draw long lines with line geometry (`GridHelper`, `Line`, `LineSegments`): the
   software renderer misplaces lines that pass behind the camera. Use textures or meshes.
 - Secrets (the DJI app key) come from a local file or CI secret and are never committed.

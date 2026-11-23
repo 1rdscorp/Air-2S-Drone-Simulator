@@ -260,7 +260,7 @@ and add a line to the decision log (section 9) if something changed.
     by the stick command (both sticks down and inward) or a button; auto take-off to
     1.2 m; auto landing; Cine / Normal / Sport parameter sets; emergency motor stop.
   - Done when: every transition is unit-tested; each mode reaches its own top speed.
-- [ ] **07 — Drone model and cameras**
+- [x] **07 — Drone model and cameras**
   - Build: an original low-poly folding quadcopter (no DJI artwork), spinning
     propellers, visible tilt; chase camera, gimbal (FPV) camera, free spectator camera;
     a key to switch.
@@ -472,6 +472,13 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 06 — The three modes have their own limits and feel. Measured: Cine reaches 4.5 m/s in 2.8 s and stops from 5 m/s in 7 m; Normal reaches 13.5 m/s in 4.6 s and stops from 15 m/s in 20 m; Sport reaches 17 m/s in 4.1 s, flies at 34° tilt at 19 m/s and stops in 22 m. Change `MODE_TUNING` if a mode does not feel right.
 - 2026-11-23 — step 06 — The aircraft now starts on the ground with the motors off. A one-line flight status at the bottom of the screen says what it is doing and which key comes next — without it the first screen would not explain itself; Step 09 turns it into the proper HUD.
 - 2026-11-23 — step 06 — For tests, `__sim.reset({ height })` starts in a hover and `__sim.setControls({ buttons })` presses buttons.
+- 2026-11-23 — step 07 — The aircraft model is built in code from simple solids (rounded body, four arms, motors, two-blade propellers, legs, camera pod) and sized to the published 183 × 253 × 77 mm — no model file to license, and nothing copied from DJI. Red marks on the front legs and a green mark at the back show which way it faces; real navigation lights are Step 18.
+- 2026-11-23 — step 07 — Propellers: still when the motors are off, turning visibly when idling, and a see-through disc in powered flight. What is shown depends only on the flight phase and the simulated time — so the same moment always looks the same, which the picture tests need.
+- 2026-11-23 — step 07 — Chase camera: 1.7 m behind and 0.55 m above, level, and it swings round behind a turning aircraft with a 0.18 s delay — the turn is then visible in the picture instead of the world just rotating.
+- 2026-11-23 — step 07 — Drone camera: looks out of the lens position on the nose, level and straight ahead whatever the tilt. Gimbal tilt and the real field of view are Step 08.
+- 2026-11-23 — step 07 — Free camera: it stays on the aircraft and is moved round it with the mouse (drag to look, scroll to zoom) — a camera flown with keys would clash with the flight keys. It does not turn with the aircraft.
+- 2026-11-23 — step 07 — V goes through the three views; `?camera=chase|fpv|free` chooses one at start; `__sim.setCamera()` and `__sim.getCamera()` are for tests. A label in the top-right corner names the view.
+- 2026-11-23 — step 07 — Picture tests compare each view with a reference picture stored in `sim/e2e/camera.spec.ts-snapshots/`, allowing 1 % of the pixels to differ — enough for small differences between machines, not enough to hide a changed view.
 
 ---
 
