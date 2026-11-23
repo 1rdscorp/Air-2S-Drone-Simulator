@@ -26,16 +26,20 @@ export interface DebugActions {
   changeSpeed(direction: 1 | -1): void;
   /** Put the aircraft back where it started. */
   resetFlight(): void;
+  /** Switch the sound on or off. */
+  toggleSound(): void;
   isPaused(): boolean;
 }
 
 /**
- * Keyboard shortcuts for the debug tools. Keys are matched by position on the keyboard
- * (`event.code`), so they are the same on every keyboard layout.
+ * Keyboard shortcuts for everything that is not flying: the view, the sound and the debug
+ * tools. Keys are matched by position on the keyboard (`event.code`), so they are the
+ * same on every keyboard layout.
  *
  *   ` or F2   show / hide the overlay
  *   I         show / hide the stick monitor
  *   V         next camera view
+ *   M         sound on / off
  *   P         pause / resume
  *   .         one step forward (while paused; hold to keep stepping)
  *   − and =   slower / faster
@@ -71,6 +75,11 @@ export function bindDebugKeys(target: Window, actions: DebugActions): () => void
       case 'KeyV':
         if (!event.repeat) {
           actions.nextCamera();
+        }
+        break;
+      case 'KeyM':
+        if (!event.repeat) {
+          actions.toggleSound();
         }
         break;
       case 'KeyP':

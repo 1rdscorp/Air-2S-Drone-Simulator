@@ -25,5 +25,10 @@ export default defineConfig(
     files: ['*.config.{js,ts}', 'e2e/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
+  {
+    // Tools run with Node; parts of them run inside a browser page they open.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
   prettier,
 );

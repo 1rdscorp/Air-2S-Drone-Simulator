@@ -4,8 +4,8 @@ A 3D drone flight simulator for the browser, flown with a real DJI Smart Control
 Bluetooth. Environments: mountains, city, ocean and beach, with day / night and weather.
 
 The project is built in small numbered steps. So far the aircraft can be flown over a
-flat test field with the keyboard or a gamepad, with three camera views and a flight
-display; the environments and the controller link come in later steps.
+flat test field with the keyboard or a gamepad, with three camera views, a flight display
+and sound; the environments and the controller link come in later steps.
 
 ## Try it online
 
@@ -58,6 +58,13 @@ The flight display shows what a pilot needs while flying:
 - **Under the compass:** short messages such as "Taking off" or "Sport mode"; warnings
   are red.
 
+There is sound: the four motors, which rise in a climb or at speed and fall in a descent,
+the air rushing past, and short tones for take-off, landing, a change of mode and for
+warnings. Browsers only allow sound after a key press or a click, so it starts with your
+first one; the label in the top-right corner says whether it is on. Press **M** to switch
+it off and on. To start without sound add `?sound=0` to the address, and to make it
+quieter add for example `?volume=0.3` (0 to 1).
+
 The stick monitor in the bottom-right corner shows what the simulator reads from your
 keyboard or gamepad.
 
@@ -67,6 +74,7 @@ The keyboard acts as two sticks. In stick mode 2, the usual default:
 |-----|--------------|
 | T | Take off; in the air: land; during a landing: cancel it |
 | V | Next camera view: chase, drone camera, free |
+| M | Sound off / on |
 | W / S | Left stick up / down: climb / descend |
 | A / D | Left stick left / right: turn left / right |
 | Arrow up / down | Right stick up / down: fly forward / backward |

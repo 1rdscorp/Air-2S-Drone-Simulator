@@ -117,4 +117,20 @@ describe('parseParams', () => {
     expect(params).toEqual(DEFAULT_PARAMS);
     expect(warnings).toEqual([]);
   });
+
+  it('reads whether the sound starts on, and how loud it is', () => {
+    expect(parseParams('').params.sound).toBe(true);
+    expect(parseParams('').params.volume).toBe(0.7);
+    expect(parseParams('?sound=0').params.sound).toBe(false);
+    expect(parseParams('?sound=off&volume=0.25').params).toMatchObject({
+      sound: false,
+      volume: 0.25,
+    });
+    expect(parseParams('?volume=0').params.volume).toBe(0);
+
+    const { params, warnings } = parseParams('?volume=11&sound=loud');
+    expect(params.volume).toBe(0.7);
+    expect(params.sound).toBe(true);
+    expect(warnings).toHaveLength(2);
+  });
 });

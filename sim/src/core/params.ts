@@ -13,7 +13,7 @@ export type QualityId = (typeof QUALITY_IDS)[number];
 
 /**
  * Settings read from the page address, for example
- * `?env=city&time=21.5&seed=7&quality=low&debug=1&paused=1&speed=0.5&stickmode=2`.
+ * `?env=city&time=21.5&seed=7&quality=low&debug=1&paused=1&speed=0.5&stickmode=2&sound=0`.
  * They make any view repeatable, which screenshots and tests rely on.
  */
 export interface SimParams {
@@ -41,6 +41,10 @@ export interface SimParams {
   camera: CameraMode;
   /** Lets the camera gimbal tilt above level, up to +24°. Address name: `gimbalup`. */
   gimbalUpward: boolean;
+  /** Start with the sound on. The M key switches it while flying. */
+  sound: boolean;
+  /** Overall loudness, 0 to 1. */
+  volume: number;
 }
 
 export const DEFAULT_PARAMS: Readonly<SimParams> = {
@@ -56,6 +60,8 @@ export const DEFAULT_PARAMS: Readonly<SimParams> = {
   sticks: true,
   camera: 'chase',
   gimbalUpward: false,
+  sound: true,
+  volume: 0.7,
 };
 
 export interface ParsedParams {
@@ -150,6 +156,8 @@ export function parseParams(search: string): ParsedParams {
   params.sticks = flag('sticks', DEFAULT_PARAMS.sticks);
   params.camera = oneOf('camera', CAMERA_MODES) ?? DEFAULT_PARAMS.camera;
   params.gimbalUpward = flag('gimbalup', DEFAULT_PARAMS.gimbalUpward);
+  params.sound = flag('sound', DEFAULT_PARAMS.sound);
+  params.volume = numberBetween('volume', 0, 1) ?? DEFAULT_PARAMS.volume;
 
   return { params, warnings };
 }

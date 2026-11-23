@@ -247,19 +247,27 @@ test.describe('controller check page', () => {
     page,
   }) => {
     await addFakeBluetooth(page);
-    await page.clock.install();
+    // The page's clock stands still and only moves when this test moves it. Otherwise the
+    // "packets per second" would keep falling while the test reads it.
+    await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
     await page.goto('/controller-check.html');
+    await page.clock.pauseAt(new Date('2026-01-01T00:00:10Z'));
     await page.locator('#connect').click();
+    await page.clock.runFor(300);
     await expect(result(page, 'bluetooth-status')).toContainText('State: connected');
 
-    // Six seconds at 50 packets per second, on the page's own clock.
+    // Six seconds at 50 packets per second.
     let counter = 0;
     for (let tick = 0; tick < 60; tick++) {
       await sendPackets(page, counter, 5);
       counter += 5;
       await page.clock.runFor(100);
     }
-    await expect(result(page, 'bluetooth-result')).toHaveText('PASS · 50 packets per second');
+    // The rate is counted over the last two seconds; whether the oldest batch of five is
+    // still inside that window depends on the moment of reading, so 48 is as right as 50.
+    await expect(result(page, 'bluetooth-result')).toHaveText(
+      /^PASS · (48|49|50) packets per second$/,
+    );
 
     // Then only 10 packets per second.
     for (let tick = 0; tick < 30; tick++) {
@@ -267,7 +275,9 @@ test.describe('controller check page', () => {
       counter += 1;
       await page.clock.runFor(100);
     }
-    await expect(result(page, 'bluetooth-result')).toHaveText('TOO SLOW · 10 packets per second');
+    await expect(result(page, 'bluetooth-result')).toHaveText(
+      /^TOO SLOW · (9|10) packets per second$/,
+    );
     await expect(result(page, 'report')).toContainText('BLUETOOTH LINK: TOO SLOW');
   });
 
