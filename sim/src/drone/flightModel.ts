@@ -10,11 +10,20 @@ import {
 } from './air2s.config';
 import type { DroneState } from './droneState';
 import { type Sticks, updatePhase } from './flightPhase';
+import { stepGimbal } from './gimbal';
 
 /** Height of the ground. Flat for now. TODO(step-10): ask the environment. */
 const GROUND_HEIGHT = 0;
 
 const NO_BUTTONS = noButtonsPressed();
+
+/** Aircraft settings the pilot can change. */
+export interface FlightOptions {
+  /** Lets the camera tilt above level, up to +24°. */
+  gimbalUpward: boolean;
+}
+
+export const DEFAULT_FLIGHT_OPTIONS: Readonly<FlightOptions> = { gimbalUpward: false };
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -40,10 +49,17 @@ function stick(value: number): number {
  *   4. Tilt accelerates the aircraft; air drag slows it.
  *   5. With the sticks centred the controller brakes, then holds the spot and the height.
  *
+ * The camera gimbal moves in every phase, also on the ground with the motors off.
+ *
  * @param state changed in place
  * @param dt step length in seconds
  */
-export function stepDrone(state: DroneState, controls: ControlFrame, dt: number): void {
+export function stepDrone(
+  state: DroneState,
+  controls: ControlFrame,
+  dt: number,
+  options: Readonly<FlightOptions> = DEFAULT_FLIGHT_OPTIONS,
+): void {
   // TODO(step-24): proper signal-loss behaviour. For now a lost controller means centred
   // sticks and no buttons.
   const live = controls.connected;
@@ -54,7 +70,10 @@ export function stepDrone(state: DroneState, controls: ControlFrame, dt: number)
     throttle: live ? stick(controls.throttle) : 0,
   };
 
-  updatePhase(state, sticks, live ? controls.buttons : NO_BUTTONS, dt);
+  const buttons = live ? controls.buttons : NO_BUTTONS;
+
+  updatePhase(state, sticks, buttons, dt);
+  stepGimbal(state, live ? controls.gimbal : 0, buttons, dt, options.gimbalUpward);
 
   const limits = MODE_LIMITS[controls.mode];
   const tuning = MODE_TUNING[controls.mode];

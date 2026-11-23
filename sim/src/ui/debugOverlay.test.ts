@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS } from '../core/params';
-import { type DebugInfo, formatDebugText, formatDrone, formatTimeScale } from './debugOverlay';
+import {
+  type DebugInfo,
+  formatDebugText,
+  formatDrone,
+  formatGimbal,
+  formatTimeScale,
+} from './debugOverlay';
 
 const INFO: DebugInfo = {
   fps: 59.94,
@@ -21,6 +27,7 @@ const INFO: DebugInfo = {
     climbRate: 0,
     headingDeg: 45.2,
     onGround: false,
+    gimbalDeg: -45.4,
   },
   params: DEFAULT_PARAMS,
 };
@@ -47,8 +54,8 @@ describe('formatDebugText', () => {
     expect(formatDebugText(INFO)).toMatch(/Input\s+Keyboard · stick mode 2/);
   });
 
-  it('shows which camera view is in use', () => {
-    expect(formatDebugText(INFO)).toMatch(/Camera\s+Chase camera/);
+  it('shows which camera view is in use, and the gimbal tilt', () => {
+    expect(formatDebugText(INFO)).toMatch(/Camera\s+Chase camera · gimbal −45°/);
   });
 
   it('says when the simulation is paused', () => {
@@ -106,7 +113,14 @@ describe('formatDrone', () => {
   });
 
   it('names every flight phase', () => {
-    const onGround = { height: 0, speed: 0, climbRate: 0, headingDeg: 0, onGround: true };
+    const onGround = {
+      height: 0,
+      speed: 0,
+      climbRate: 0,
+      headingDeg: 0,
+      onGround: true,
+      gimbalDeg: 0,
+    };
 
     expect(formatDrone({ ...onGround, phase: 'motorsOff' })).toMatch(/^motors off · 0\.0 m/);
     expect(formatDrone({ ...onGround, phase: 'idle' })).toMatch(/^motors on · /);
@@ -118,6 +132,20 @@ describe('formatDrone', () => {
     const falling = { ...INFO.drone, phase: 'motorsOff' as const, climbRate: -18 };
 
     expect(formatDrone(falling)).toMatch(/^falling · 12\.0 m · .* climb −18\.0 m\/s/);
+  });
+});
+
+describe('formatGimbal', () => {
+  it('shows level as 0°, looking down with a minus and looking up with a plus', () => {
+    expect(formatGimbal(0)).toBe('0°');
+    expect(formatGimbal(-90)).toBe('−90°');
+    expect(formatGimbal(-44.6)).toBe('−45°');
+    expect(formatGimbal(24)).toBe('+24°');
+  });
+
+  it('never shows minus zero', () => {
+    expect(formatGimbal(-0.2)).toBe('0°');
+    expect(formatGimbal(0.3)).toBe('0°');
   });
 });
 

@@ -62,12 +62,20 @@ describe('copyDroneState', () => {
 });
 
 describe('blendPose', () => {
-  const pose = (): DronePose => ({ x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0 });
+  const pose = (): DronePose => ({
+    x: 0,
+    y: 0,
+    z: 0,
+    heading: 0,
+    pitch: 0,
+    roll: 0,
+    gimbalTilt: 0,
+  });
 
   it('gives the first state at 0, the second at 1 and the middle at 0.5', () => {
     const from = createFlyingState(START_HEIGHT);
     const to = createFlyingState(START_HEIGHT);
-    Object.assign(to, { x: 10, y: 4, z: -6, heading: 1, pitch: 0.2, roll: -0.4 });
+    Object.assign(to, { x: 10, y: 4, z: -6, heading: 1, pitch: 0.2, roll: -0.4, gimbalTilt: -1 });
 
     expect(blendPose(pose(), from, to, 0)).toMatchObject({ x: 0, y: START_HEIGHT, z: 0 });
     expect(blendPose(pose(), from, to, 1)).toEqual({
@@ -77,12 +85,14 @@ describe('blendPose', () => {
       heading: 1,
       pitch: 0.2,
       roll: -0.4,
+      gimbalTilt: -1,
     });
     const middle = blendPose(pose(), from, to, 0.5);
     expect(middle.x).toBeCloseTo(5, 12);
     expect(middle.y).toBeCloseTo((START_HEIGHT + 4) / 2, 12);
     expect(middle.heading).toBeCloseTo(0.5, 12);
     expect(middle.roll).toBeCloseTo(-0.2, 12);
+    expect(middle.gimbalTilt).toBeCloseTo(-0.5, 12);
   });
 
   it('turns smoothly through north, because the heading is not wrapped', () => {

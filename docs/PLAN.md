@@ -265,7 +265,7 @@ and add a line to the decision log (section 9) if something changed.
     propellers, visible tilt; chase camera, gimbal (FPV) camera, free spectator camera;
     a key to switch.
   - Done when: screenshot tests exist for all three cameras.
-- [ ] **08 — Gimbal**
+- [x] **08 — Gimbal**
   - Build: 3-axis stabilisation (horizon stays level when the drone tilts); tilt −90° to
     0°, optional +24°; dial and key control with rate limit and smoothing; correct field
     of view; recentre and look-down shortcuts.
@@ -479,6 +479,13 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 07 — Free camera: it stays on the aircraft and is moved round it with the mouse (drag to look, scroll to zoom) — a camera flown with keys would clash with the flight keys. It does not turn with the aircraft.
 - 2026-11-23 — step 07 — V goes through the three views; `?camera=chase|fpv|free` chooses one at start; `__sim.setCamera()` and `__sim.getCamera()` are for tests. A label in the top-right corner names the view.
 - 2026-11-23 — step 07 — Picture tests compare each view with a reference picture stored in `sim/e2e/camera.spec.ts-snapshots/`, allowing 1 % of the pixels to differ — enough for small differences between machines, not enough to hide a changed view.
+- 2026-11-23 — step 08 — The gimbal's tilt is measured against the horizon, not against the aircraft — that is what stabilisation means: the camera never rolls, and its tilt does not change when the aircraft pitches. The camera turns with the aircraft's heading.
+- 2026-11-23 — step 08 — Tilt range −90° to 0° (published), and up to +24° with `?gimbalup=1` until the settings screen exists. The gimbal's mechanical limits are not modelled, so the camera stays steady at any aircraft tilt.
+- 2026-11-23 — step 08 — Dial: 50°/s with the dial fully turned, eased in and out over about 0.12 s, never above the published 100°/s. These are tuned values in `GIMBAL_TUNING`. After the dial is let go the camera glides about 6° further and then rests completely.
+- 2026-11-23 — step 08 — Shortcuts: C1 (keyboard Z, gamepad left bumper) recentres to level; C2 (keyboard X, right bumper) looks straight down. Each takes about 1.5 s and does not overshoot; turning the dial takes over. Step 25 can make the buttons configurable.
+- 2026-11-23 — step 08 — Field of view of the drone camera: DJI's 88° is across the diagonal of the 3:2 photo; that is 77.6° from side to side, which agrees with the published 22 mm equivalent lens. The width of the view is fixed at that value and the height follows the window's shape (48.6° on a 16:9 screen). The chase and free views keep 55°.
+- 2026-11-23 — step 08 — Picture tests are now strict: at most 100 differing pixels, with a finer colour threshold — the 1 % allowance of Step 07 let the field-of-view change through unnoticed, because this scene is mostly flat sky and ground. Unchanged views are identical to the last pixel from run to run.
+- 2026-11-23 — step 08 — The camera pod of the model stays level and tilts with the gimbal, so stabilisation can be seen from the chase and free views.
 
 ---
 

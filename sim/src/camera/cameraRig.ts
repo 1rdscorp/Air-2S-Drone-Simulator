@@ -1,4 +1,5 @@
 import { type PerspectiveCamera, Vector3 } from 'three';
+import { AIR_2S_SPECS } from '../drone/air2s.config';
 import { lensWorldPosition } from '../drone/droneModel';
 import type { DronePose } from '../drone/droneState';
 
@@ -7,6 +8,7 @@ import type { DronePose } from '../drone/droneState';
  *
  *   chase  Behind and above the aircraft, turning with it. The easiest view to fly from.
  *   fpv    The aircraft's own camera: what the pilot sees on the controller's screen.
+ *          Stabilised by the gimbal, with the lens's real field of view.
  *   free   A spectator camera that stays on the aircraft but can be moved around it
  *          with the mouse. It does not turn with the aircraft.
  */
@@ -51,6 +53,30 @@ const FREE_TARGET_HEIGHT_M = 0.05;
 
 /** Nearest distance each view can draw, in metres. The drone camera sits among the propellers. */
 const NEAR_PLANE_M: Record<CameraMode, number> = { chase: 0.1, fpv: 0.03, free: 0.1 };
+
+/** Field of view of the chase and free views, top to bottom, in degrees. */
+export const VIEW_FOV_DEG = 55;
+
+/**
+ * The drone camera's field of view from side to side, in radians.
+ * DJI publishes 88° across the diagonal of the full 3:2 picture; this is the same lens
+ * measured across the width.
+ */
+export function droneCameraHorizontalFov(): number {
+  const { fieldOfView, sensorAspect } = AIR_2S_SPECS.camera;
+  const halfDiagonal = Math.tan(fieldOfView / 2);
+  return 2 * Math.atan((halfDiagonal * sensorAspect) / Math.hypot(sensorAspect, 1));
+}
+
+/**
+ * The drone camera's field of view from top to bottom, in degrees, for a picture that is
+ * `aspect` times as wide as it is high. The width of the view is the lens's; the height
+ * follows from the shape of the window.
+ */
+export function droneCameraVerticalFovDeg(aspect: number): number {
+  const halfWidth = Math.tan(droneCameraHorizontalFov() / 2);
+  return (2 * Math.atan(halfWidth / aspect) * 180) / Math.PI;
+}
 
 const scratch = new Vector3();
 
@@ -116,8 +142,10 @@ export class CameraRig {
    */
   update(camera: PerspectiveCamera, pose: Readonly<DronePose>, elapsedSeconds: number): void {
     const near = NEAR_PLANE_M[this.current];
-    if (camera.near !== near) {
+    const fov = this.current === 'fpv' ? droneCameraVerticalFovDeg(camera.aspect) : VIEW_FOV_DEG;
+    if (camera.near !== near || Math.abs(camera.fov - fov) > 1e-9) {
       camera.near = near;
+      camera.fov = fov;
       camera.updateProjectionMatrix();
     }
 
@@ -161,18 +189,14 @@ export class CameraRig {
   }
 
   /**
-   * The aircraft's own camera. It rides on the tilting nose, but stays level and looks
-   * straight ahead, as a stabilised camera does.
-   * TODO(step-08): gimbal tilt, and the real field of view.
+   * The aircraft's own camera. It rides on the tilting nose, but the gimbal holds it
+   * steady: it looks the way the nose points, the horizon stays level whatever the
+   * aircraft does, and only the gimbal tilts it up or down.
    */
   private placeFpv(camera: PerspectiveCamera, pose: Readonly<DronePose>): void {
     lensWorldPosition(pose, camera.position);
-    camera.up.set(0, 1, 0);
-    camera.lookAt(
-      camera.position.x + Math.sin(pose.heading),
-      camera.position.y,
-      camera.position.z - Math.cos(pose.heading),
-    );
+    // Heading, then tilt, and never any roll. Three.js turns the other way round, hence the minus.
+    camera.rotation.set(pose.gimbalTilt, -pose.heading, 0, 'YXZ');
   }
 
   private placeFree(camera: PerspectiveCamera, pose: Readonly<DronePose>): void {

@@ -7,7 +7,7 @@ import {
   type DroneState,
   type FlightPhase,
 } from '../drone/droneState';
-import { stepDrone } from '../drone/flightModel';
+import { DEFAULT_FLIGHT_OPTIONS, type FlightOptions, stepDrone } from '../drone/flightModel';
 import type { ControlFrame } from '../input/types';
 
 /** Everything the simulation knows at one moment. For now that is the aircraft. */
@@ -21,12 +21,25 @@ export type SimState = DroneState;
 export class Simulation {
   private readonly previous: DroneState = createDroneState();
   private readonly current: DroneState = createDroneState();
-  private readonly blended: DronePose = { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0 };
+  private readonly blended: DronePose = {
+    x: 0,
+    y: 0,
+    z: 0,
+    heading: 0,
+    pitch: 0,
+    roll: 0,
+    gimbalTilt: 0,
+  };
+  private readonly options: FlightOptions;
+
+  constructor(options: Partial<FlightOptions> = {}) {
+    this.options = { ...DEFAULT_FLIGHT_OPTIONS, ...options };
+  }
 
   /** Advance by one fixed step of `dt` seconds, flying with the given controls. */
   step(dt: number, controls: ControlFrame): void {
     copyDroneState(this.previous, this.current);
-    stepDrone(this.current, controls, dt);
+    stepDrone(this.current, controls, dt, this.options);
   }
 
   /**

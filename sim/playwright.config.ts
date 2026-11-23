@@ -10,9 +10,11 @@ export default defineConfig({
   retries: isCI ? 1 : 0,
   reporter: isCI ? [['github'], ['html', { open: 'never' }]] : 'list',
   expect: {
-    // Picture comparisons: allow the small differences one machine's software renderer
-    // may have from another's, but not a view that has really changed.
-    toHaveScreenshot: { maxDiffPixelRatio: 0.01 },
+    // Picture comparisons must be strict: the scene is mostly flat sky and ground, so even
+    // a clearly different view changes well under 1 % of the pixels. Unchanged views are
+    // identical to the last pixel from run to run; 100 pixels of slack is for the small
+    // differences another machine's software renderer may have.
+    toHaveScreenshot: { maxDiffPixels: 100, threshold: 0.05 },
   },
   use: {
     baseURL: `http://localhost:${PORT}`,

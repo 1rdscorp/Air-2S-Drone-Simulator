@@ -56,6 +56,19 @@ export interface DroneState {
   /** Whether the take-off / landing and the flight-pause buttons were down in the last step. */
   takeoffButtonWasDown: boolean;
   pauseButtonWasDown: boolean;
+  /**
+   * Camera tilt against the horizon: 0 is level, negative looks down (-90° is straight
+   * down), positive looks up. It does not change when the aircraft tilts.
+   */
+  gimbalTilt: number;
+  /** How fast the camera tilt is changing. */
+  gimbalRate: number;
+  /** True while a shortcut (recentre, look down) is moving the camera to `gimbalTarget`. */
+  gimbalMovingToTarget: boolean;
+  gimbalTarget: number;
+  /** Whether the two gimbal shortcut buttons (C1, C2) were down in the last step. */
+  c1ButtonWasDown: boolean;
+  c2ButtonWasDown: boolean;
 }
 
 /** The part of the state that is needed to draw the aircraft. */
@@ -66,6 +79,8 @@ export interface DronePose {
   heading: number;
   pitch: number;
   roll: number;
+  /** Camera tilt against the horizon; see `DroneState.gimbalTilt`. */
+  gimbalTilt: number;
 }
 
 /** The aircraft at the start: standing on the ground at the origin, motors off, facing north. */
@@ -95,6 +110,12 @@ export function createDroneState(): DroneState {
     throttleDownSeconds: 0,
     takeoffButtonWasDown: false,
     pauseButtonWasDown: false,
+    gimbalTilt: 0,
+    gimbalRate: 0,
+    gimbalMovingToTarget: false,
+    gimbalTarget: 0,
+    c1ButtonWasDown: false,
+    c2ButtonWasDown: false,
   };
 }
 
@@ -129,6 +150,7 @@ export function blendPose(
   out.heading = from.heading + (to.heading - from.heading) * t;
   out.pitch = from.pitch + (to.pitch - from.pitch) * t;
   out.roll = from.roll + (to.roll - from.roll) * t;
+  out.gimbalTilt = from.gimbalTilt + (to.gimbalTilt - from.gimbalTilt) * t;
   return out;
 }
 

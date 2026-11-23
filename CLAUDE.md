@@ -51,8 +51,8 @@ Notes for headless and cloud sessions:
 
 - Address settings: `?debug=1` (overlay), `?paused=1`, `?speed=0.5` (0.05 to 8),
   `?stickmode=1|2|3`, `?expo=0..1`, `?sticks=0` (hide the stick monitor),
-  `?camera=chase|fpv|free`, plus `env`, `time`, `seed`, `quality`, which are read now and
-  used from Steps 10, 17, 11, 20.
+  `?camera=chase|fpv|free`, `?gimbalup=1` (camera may tilt up to +24°), plus `env`,
+  `time`, `seed`, `quality`, which are read now and used from Steps 10, 17, 11, 20.
 - Keys: `` ` `` or F2 overlay, I stick monitor, V next camera view, P pause, `.` one step
   while paused, `-` and `=` speed, Backspace puts the aircraft back at the start.
 - `window.__sim` (see `sim/src/core/testHook.ts`): `tick`, `time`, `paused`, `timeScale`,
@@ -75,13 +75,17 @@ Notes for headless and cloud sessions:
 ## Picture tests
 
 Some browser tests compare the 3D view with a reference picture (`toHaveScreenshot`), for
-example `sim/e2e/camera.spec.ts`. They hide the text overlays first and allow 1 % of the
-pixels to differ.
+example `sim/e2e/camera.spec.ts` and `sim/e2e/gimbal.spec.ts`. They hide the text overlays
+first and allow at most 100 pixels to differ. The comparison has to be that strict: the
+scene is mostly flat sky and ground, so even a clearly different view changes well under
+1 % of the pixels.
 
 - When such a test fails, look at the actual picture before anything else. If the view
   changed by mistake, fix the code.
 - Only when the view was meant to change, renew the references inside `sim/` with
-  `npx playwright test --update-snapshots`, look at every new picture, and commit them.
+  `npx playwright test --update-snapshots=all`, look at every new picture, and commit them.
+- After a change that should alter a view, check that the old reference really fails
+  before renewing it. If it still passes, the test is not looking at what changed.
 - Keep everything in a pictured scene dependent only on simulation state and simulated
   time, never on real time; otherwise the picture is different on every run.
 
@@ -125,6 +129,9 @@ pixels to differ.
 - The aircraft shape is built in code in `sim/src/drone/droneModel.ts`. The views are in
   `sim/src/camera/cameraRig.ts`; a camera reads the aircraft's pose and never changes the
   simulation.
+- The camera gimbal is part of the simulation state (`gimbalTilt` in `DroneState`, moved by
+  `sim/src/drone/gimbal.ts`). Its tilt is measured against the horizon: 0 is level, −90°
+  is straight down. The drone camera view and the model's camera pod both read it.
 - Do not draw long lines with line geometry (`GridHelper`, `Line`, `LineSegments`): the
   software renderer misplaces lines that pass behind the camera. Use textures or meshes.
 - Secrets (the DJI app key) come from a local file or CI secret and are never committed.

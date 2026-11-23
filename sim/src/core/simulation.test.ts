@@ -109,6 +109,29 @@ describe('Simulation', () => {
     expect(sim.interpolate(0.5).y).toBe(120);
   });
 
+  it('moves the camera gimbal with the dial, and blends it for drawing', () => {
+    const sim = airborne();
+    run(sim, 1, { ...HOVER, gimbal: -1 });
+    const before = sim.snapshot().gimbalTilt;
+    sim.step(SIM_DT, { ...HOVER, gimbal: -1 });
+    const after = sim.snapshot().gimbalTilt;
+
+    expect(after).toBeLessThan(before);
+    expect(before).toBeLessThan(-0.3);
+    expect(sim.interpolate(0.5).gimbalTilt).toBeCloseTo((before + after) / 2, 12);
+  });
+
+  it('lets the gimbal look above level only with the upward setting', () => {
+    const plain = airborne();
+    run(plain, 3, { ...HOVER, gimbal: 1 });
+    expect(plain.snapshot().gimbalTilt).toBe(0);
+
+    const upward = new Simulation({ gimbalUpward: true });
+    upward.reset(50);
+    run(upward, 3, { ...HOVER, gimbal: 1 });
+    expect(upward.snapshot().gimbalTilt).toBeGreaterThan(0.4);
+  });
+
   it('reaches exactly the same state at any render rate', () => {
     const TARGET_TICK = SIM_HZ * 30;
     const script = (tick: number): ControlFrame => ({

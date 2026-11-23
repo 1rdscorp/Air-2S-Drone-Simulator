@@ -41,6 +41,10 @@ There are three camera views; press **V** to change. The chase camera follows fr
 the drone camera shows what the aircraft's own camera sees, and the free camera can be
 moved round the aircraft with the mouse: drag to look around, scroll to zoom.
 
+The drone camera is stabilised like the real one: the horizon stays level however the
+aircraft tilts, and only you tilt the camera, with R and F. To let it also look up to 24°
+above level, add `?gimbalup=1` to the address.
+
 The stick monitor in the bottom-right corner shows what the simulator reads from your
 keyboard or gamepad.
 
@@ -57,8 +61,10 @@ The keyboard acts as two sticks. In stick mode 2, the usual default:
 | 1 / 2 / 3 | Cine (5 m/s) / Normal (15 m/s) / Sport (19 m/s) mode |
 | Space | Flight pause: stops an automatic take-off or landing |
 | K | The stick command (both sticks down and inward). On the ground: starts or stops the motors. Held for 2 seconds in the air: cuts the motors, and the aircraft falls |
-| R / F | Gimbal up / down (shown, but no effect yet) |
-| H, C, B, Z, X | Return to home, record, photo, C1, C2 (shown, but no effect yet) |
+| R / F | Tilt the camera up / down, between level and straight down |
+| Z | Camera back to level |
+| X | Camera straight down |
+| H, C, B | Return to home, record, photo (shown, but no effect yet) |
 
 There are two ways to take off and to land, as on the real aircraft:
 
@@ -72,11 +78,11 @@ it once so the browser can see it.
 | Gamepad | What it does |
 |---------|--------------|
 | Left / right stick | The two control sticks |
-| Right / left trigger | Gimbal up / down |
+| Right / left trigger | Tilt the camera up / down |
 | D-pad left / up / right | Cine / Normal / Sport mode |
 | Start | Take off / land |
 | Y, B, X, A | Return to home, flight pause, record, photo |
-| Left / right bumper | Custom buttons C1 / C2 |
+| Left / right bumper | Camera back to level / camera straight down |
 
 To change which stick does what, add the stick mode to the address:
 `?stickmode=1`, `?stickmode=2` or `?stickmode=3`.
