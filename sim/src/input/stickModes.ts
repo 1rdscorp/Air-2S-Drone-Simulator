@@ -28,3 +28,19 @@ export function mapSticks(sticks: StickPositions, mode: StickMode): Record<AxisF
   result[layout.rightY] = sticks.rightY;
   return result;
 }
+
+export const AXIS_FUNCTIONS: readonly AxisFunction[] = ['roll', 'pitch', 'yaw', 'throttle'];
+
+/** The opposite of `mapSticks`: where the two sticks stand for these four values. */
+export function sticksFromFunctions(
+  values: Record<AxisFunction, number>,
+  mode: StickMode,
+): StickPositions {
+  const layout = STICK_LAYOUTS[mode];
+  return {
+    leftX: values[layout.leftX],
+    leftY: values[layout.leftY],
+    rightX: values[layout.rightX],
+    rightY: values[layout.rightY],
+  };
+}

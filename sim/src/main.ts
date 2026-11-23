@@ -19,6 +19,8 @@ import { animateRotors, applyPose, createDroneModel } from './drone/droneModel';
 import { headingDegrees, horizontalSpeed } from './drone/droneState';
 import { GamepadSource } from './input/gamepadSource';
 import { InputManager } from './input/inputManager';
+import { joystickLabelText, JoystickSource, type JoystickStatus } from './input/joystickSource';
+import { browserStorage, loadJoystickMapping, saveJoystickMapping } from './input/joystickStorage';
 import { KeyboardSource } from './input/keyboardSource';
 import { type ControlFrame, neutralFrame, noButtonsPressed } from './input/types';
 import { bindDebugKeys, nextTimeScale } from './ui/debugControls';
@@ -27,6 +29,7 @@ import { flightStatusText, takeoffButtonName } from './ui/flightStatus';
 import { flightMessage } from './ui/flightMessages';
 import { bindFreeCameraControls } from './ui/freeCameraControls';
 import { Hud } from './ui/hud';
+import { JoystickSetupScreen } from './ui/joystickSetup';
 import { hudValues } from './ui/hudValues';
 import { StickMonitor } from './ui/stickMonitor';
 import { ToastList } from './ui/toasts';
@@ -48,6 +51,7 @@ function start(): void {
   const flightStatus = requireElement('#flight-status');
   const cameraLabel = requireElement('#camera-label');
   const soundLabel = requireElement('#sound-label');
+  const stickLabel = requireElement('#stick-label');
   requireElement('#build-label').textContent = `Air 2S Drone Simulator · v${__APP_VERSION__}`;
 
   const { params, warnings } = parseParams(window.location.search);
@@ -101,7 +105,10 @@ function start(): void {
   const keyboard = new KeyboardSource();
   keyboard.attach(window);
   const gamepad = new GamepadSource(() => navigator.getGamepads());
-  const input = new InputManager([keyboard, gamepad], {
+  // Flight sticks, throttles and pedals, read through the setup the pilot made.
+  const storage = browserStorage();
+  const joystick = new JoystickSource(() => navigator.getGamepads(), loadJoystickMapping(storage));
+  const input = new InputManager([keyboard, gamepad, joystick], {
     stickMode: params.stickMode,
     expo: params.expo,
   });
@@ -252,15 +259,84 @@ function start(): void {
     overlay.refreshSoon();
   };
 
+  // Flight stick setup: one question at a time, answered by moving the control. Nothing
+  // flies while it is open, so the simulation is paused for as long.
+  let pausedBeforeSetup = false;
+  const joystickSetup = new JoystickSetupScreen(requireElement('#joystick-setup'), {
+    devices: () => joystick.devices(),
+    onSave: (mapping) => {
+      joystick.mapping = mapping;
+      const kept = saveJoystickMapping(storage, mapping);
+      toasts.push(
+        {
+          key: 'joystick',
+          text: kept
+            ? 'Flight stick set up'
+            : 'Flight stick set up · this browser will not remember it',
+          kind: 'info',
+        },
+        loop.simTime,
+      );
+    },
+    onOpenChange: (open) => {
+      if (open) {
+        pausedBeforeSetup = loop.paused;
+        loop.paused = true;
+      } else {
+        loop.paused = pausedBeforeSetup;
+      }
+      refreshStatus();
+    },
+  });
+  const openJoystickSetup = (): void => {
+    joystickSetup.open(performance.now());
+  };
+  stickLabel.addEventListener('click', openJoystickSetup);
+  // While the setup is open the keyboard belongs to it: no key reaches the aircraft.
+  window.addEventListener(
+    'keydown',
+    (event) => {
+      const browserKey =
+        event.ctrlKey || event.metaKey || event.altKey || /^F\d+$/.test(event.code);
+      if (!joystickSetup.isOpen || browserKey) {
+        return;
+      }
+      if (joystickSetup.handleKey(event.code, performance.now())) {
+        event.stopImmediatePropagation();
+        event.preventDefault();
+      }
+    },
+    { capture: true },
+  );
+
+  /** Says whether a flight stick is there, and offers the setup. */
+  let shownStickStatus: JoystickStatus | null = null;
+  const refreshStickLabel = (): void => {
+    const status = joystick.status;
+    if (status === shownStickStatus) {
+      return;
+    }
+    if (status === 'needsSetup' && shownStickStatus !== null) {
+      toasts.push(
+        { key: 'joystick', text: 'Flight stick found · press J to set it up', kind: 'info' },
+        loop.simTime,
+      );
+    }
+    shownStickStatus = status;
+    stickLabel.textContent = joystickLabelText(status);
+    stickLabel.classList.toggle('needs-setup', status === 'needsSetup');
+  };
+
   /** Tells the pilot what the aircraft is doing and which button comes next. */
   let shownFlightStatus = '';
   const refreshFlightStatus = (): void => {
     const state = sim.state;
+    const source = input.activeSource;
     const text = flightStatusText(
       state.phase,
       state.onGround,
       currentControls().mode,
-      takeoffButtonName(input.activeSource.id),
+      takeoffButtonName(source.id, source !== joystick || joystick.hasButton('takeoffLand')),
     );
     if (text !== shownFlightStatus) {
       shownFlightStatus = text;
@@ -299,6 +375,7 @@ function start(): void {
       audio.muted = !audio.muted;
       refreshSoundLabel();
     },
+    openJoystickSetup,
     isPaused: () => loop.paused,
   });
 
@@ -372,6 +449,12 @@ function start(): void {
       shaped: { ...input.shaped },
     }),
     getAudio: () => audio.snapshot(),
+    getJoystick: () => ({
+      status: joystick.status,
+      mapping: joystick.mapping,
+      devices: joystick.devices().map((device) => device.id),
+      setupOpen: joystickSetup.isOpen,
+    }),
     setCamera,
     getCamera: () => {
       const direction = camera.getWorldDirection(new Vector3());
@@ -401,6 +484,8 @@ function start(): void {
     stickMonitor.update(input);
     refreshFlightStatus();
     refreshSoundLabel();
+    refreshStickLabel();
+    joystickSetup.update(timeMs);
     overlay.update(elapsed, debugInfo);
 
     // Lets tests wait until something has really been drawn.

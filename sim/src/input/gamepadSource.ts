@@ -116,7 +116,11 @@ export class GamepadSource implements ControlSource {
     };
   }
 
-  /** The first connected gamepad that has two sticks. */
+  /**
+   * The first connected game controller with the standard layout and two sticks. Flight
+   * sticks and other devices without that layout belong to the joystick source: read as
+   * a game controller, their axes would mean the wrong things.
+   */
   private find(): GamepadLike | null {
     let pads: ArrayLike<GamepadLike | null>;
     try {
@@ -126,7 +130,7 @@ export class GamepadSource implements ControlSource {
     }
     for (let i = 0; i < pads.length; i++) {
       const pad = pads[i];
-      if (pad?.connected && pad.axes.length >= 4) {
+      if (pad?.connected && pad.mapping === 'standard' && pad.axes.length >= 4) {
         return pad;
       }
     }

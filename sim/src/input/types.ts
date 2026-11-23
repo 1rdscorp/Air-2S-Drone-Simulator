@@ -68,7 +68,7 @@ export interface ControlFrame {
   connected: boolean;
 }
 
-/** A device that can control the drone: keyboard, gamepad, the Bluetooth bridge, a recording. */
+/** A device that can control the drone: keyboard, gamepad, flight stick, the Bluetooth bridge, a recording. */
 export interface ControlSource {
   /** Short stable name, for example 'keyboard' or 'gamepad'. */
   readonly id: string;
@@ -77,6 +77,17 @@ export interface ControlSource {
   readonly connected: boolean;
   /** Stick travel around the centre that counts as zero, 0 to 1. Depends on the hardware. */
   readonly deadzone: number;
+  /**
+   * Set by a source that has its own say on which control does what (a flight stick with
+   * its mapping). The pilot's stick mode setting is then not applied to it.
+   */
+  readonly stickMode?: StickMode;
+  /**
+   * Set by a source that may have controls for only some of roll, pitch, yaw and throttle
+   * (a flight stick): the ones it has. The others then come from another device, so a
+   * stick can fly while the keyboard climbs and turns. Left out by sources that have all.
+   */
+  readonly provides?: readonly ('roll' | 'pitch' | 'yaw' | 'throttle')[];
   /**
    * The physical controls right now, or null when the device is not available.
    * @param now current time in milliseconds

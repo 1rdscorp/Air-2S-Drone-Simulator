@@ -10,9 +10,13 @@ export const PHASE_LABELS: Record<FlightPhase, string> = {
   landing: 'landing',
 };
 
-/** What the take-off / landing button is called on the device in use. */
-export function takeoffButtonName(sourceId: string): string {
-  if (sourceId === 'keyboard') {
+/**
+ * What the take-off / landing button is called on the device in use.
+ * @param hasOwnButton false for a flight stick without a take-off button of its own: the
+ *   T key on the keyboard then does it
+ */
+export function takeoffButtonName(sourceId: string, hasOwnButton = true): string {
+  if (sourceId === 'keyboard' || !hasOwnButton) {
     return 'T';
   }
   if (sourceId === 'gamepad') {

@@ -27,7 +27,7 @@ async function flyToFixedMoment(page: Page): Promise<void> {
 async function hideOverlays(page: Page): Promise<void> {
   await page.addStyleTag({
     content:
-      '#hud, #debug-overlay, #status-badge, #flight-status, #camera-label, #sound-label, #stick-monitor, #build-label { visibility: hidden !important; }',
+      '#hud, #debug-overlay, #status-badge, #flight-status, #camera-label, #sound-label, #stick-label, #stick-monitor, #build-label { visibility: hidden !important; }',
   });
 }
 

@@ -73,12 +73,13 @@ Notes for headless and cloud sessions:
   `?camera=chase|fpv|free`, `?gimbalup=1` (camera may tilt up to +24°), `?sound=0`
   (start muted), `?volume=0..1`, plus `env`,
   `time`, `seed`, `quality`, which are read now and used from Steps 10, 17, 11, 20.
-- Keys: `` ` `` or F2 overlay, I stick monitor, V next camera view, M sound, P pause, `.`
-  one step while paused, `-` and `=` speed, Backspace puts the aircraft back at the start.
+- Keys: `` ` `` or F2 overlay, I stick monitor, V next camera view, M sound, J flight stick
+  setup, P pause, `.` one step while paused, `-` and `=` speed, Backspace puts the aircraft
+  back at the start.
 - `window.__sim` (see `sim/src/core/testHook.ts`): `tick`, `time`, `paused`, `timeScale`,
   `pause()`, `resume()`, `step(n)`, `reset({ height? })`, `setControls({...} | null)`,
   `setCamera(mode)`, `getCamera()`, `getState()`, `getStats()`, `getInput()`, `getAudio()`,
-  `params`.
+  `getJoystick()`, `params`.
 - The aircraft starts on the ground with the motors off. For an exact flight test: open
   with `?paused=1`, call `__sim.reset({ height: 20 })` to start in a hover, then
   `__sim.setControls({ pitch: 1, mode: 'S', buttons: { takeoffLand: true } })`,
@@ -89,9 +90,31 @@ Notes for headless and cloud sessions:
   `gamepadSource.ts`. Keep the Controls tables in `README.md` in step with them, and keep
   new flight keys clear of the debug keys above.
 - A gamepad can be faked in browser tests by replacing `navigator.getGamepads` before the
-  page loads; see `sim/e2e/input.spec.ts`.
+  page loads; see `sim/e2e/input.spec.ts`. A flight stick is faked the same way, with
+  `mapping: ''` instead of `'standard'`; see `sim/e2e/joystick.spec.ts`.
 - For a repeatable screenshot or test: open with `?paused=1`, call `__sim.step(n)`, then
   read `__sim.getState()` or take the picture.
+
+## Flight sticks
+
+- A game device with the browser's standard layout is a gamepad (`gamepadSource.ts`). Every
+  other one is a flight stick, throttle or pedals (`joystickSource.ts`). Never read a
+  device without the standard layout as a gamepad: its axes mean other things.
+- A flight stick is read through a mapping that the pilot makes on the setup screen (J).
+  The mapping and everything that works on it is plain, unit-tested code in
+  `sim/src/input/joystickMapping.ts`; it may span several devices and is kept in the
+  browser's storage (`joystickStorage.ts`).
+- Before there is a mapping, only the first two axes are used (left / right, forward /
+  back). Never guess more: an unknown axis may be a lever resting at one end.
+- The setup screen is `sim/src/ui/joystickSetup.ts`: `SetupSession` is the logic, told the
+  time and what the devices report, and is tested with made-up devices; the screen around
+  it only shows it. Its questions are `SETUP_STEPS`.
+- `InputManager`: one device is active and flies. Buttons, flight mode and camera tilt
+  count from every device. When a flight stick is involved, the four flight controls are
+  shared: what the stick has no control for comes from the keyboard.
+- Nobody can plug a flight stick into a headless session. What the real device does (how
+  many axes, which is which, how hat switches arrive) is only known from the owner's
+  reports; the check page `controller-check.html` shows it.
 
 ## Sound
 
@@ -152,7 +175,8 @@ scene is mostly flat sky and ground, so even a clearly different view changes we
   State changes only inside `Simulation.step`; drawing reads `Simulation.interpolate`.
 - Flight code depends on `ControlFrame`, never on a specific input device. A device is a
   `ControlSource` that reports the two physical sticks; `InputManager` does stick mode,
-  deadzone and expo.
+  deadzone and expo. A flight stick reports its controls in the form of stick mode 2 and
+  says so (`stickMode`), and says which of the four flight controls it has (`provides`).
 - Every environment implements the `Environment` interface and frees everything in
   `dispose()`.
 - All Air 2S numbers live in `sim/src/drone/air2s.config.ts`: published values with their

@@ -75,6 +75,7 @@ The keyboard acts as two sticks. In stick mode 2, the usual default:
 | T | Take off; in the air: land; during a landing: cancel it |
 | V | Next camera view: chase, drone camera, free |
 | M | Sound off / on |
+| J | Set up a flight stick |
 | W / S | Left stick up / down: climb / descend |
 | A / D | Left stick left / right: turn left / right |
 | Arrow up / down | Right stick up / down: fly forward / backward |
@@ -107,6 +108,25 @@ it once so the browser can see it.
 
 To change which stick does what, add the stick mode to the address:
 `?stickmode=1`, `?stickmode=2` or `?stickmode=3`.
+
+### Flight sticks
+
+A flight stick works too, also together with a throttle or pedals (a HOTAS). Plug it in
+and press one of its buttons, so the browser can see it. A label in the top-right corner
+then says "Flight stick found".
+
+- **Straight away:** the stick flies forward / back and left / right. Climbing and turning
+  stay on the keyboard (W / S and A / D), and T takes off. So the right hand flies and the
+  left hand rests on the keyboard.
+- **Press J to set it up.** The simulator asks for one control at a time, for example
+  "Push the stick to the RIGHT and hold it there", and you answer by moving that control.
+  Enter skips a control you do not have or do not want; whatever you skip stays on the
+  keyboard. At the end it shows the list; Enter saves it, Esc closes without saving.
+- **Buttons** on the stick can take off and land, pause the flight, level the camera, point
+  it down and choose the flight mode. A hat switch counts as buttons.
+- **A throttle lever** that stays where you put it is recognised: its middle then means
+  "hold the height", forward of it climbs and behind it descends.
+- The setup is remembered in this browser. Press J again to change it.
 
 ## Debug tools
 

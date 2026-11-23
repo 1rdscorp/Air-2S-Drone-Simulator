@@ -27,6 +27,13 @@ describe('statusLine', () => {
     expect(statusLine('Keyboard', true, 3, 'C')).toBe('Keyboard · Stick mode 3 · Cine');
   });
 
+  it('leaves the stick mode out for a device with its own layout', () => {
+    expect(statusLine('Flight stick', true, null, 'S')).toBe('Flight stick · Sport');
+    expect(statusLine('Flight stick', false, null, 'N')).toBe(
+      'Flight stick (not connected) · Normal',
+    );
+  });
+
   it('says so when the device is not connected', () => {
     expect(statusLine('Gamepad', false, 2, 'N')).toBe(
       'Gamepad (not connected) · Stick mode 2 · Normal',

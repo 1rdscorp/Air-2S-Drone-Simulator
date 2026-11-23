@@ -26,15 +26,19 @@ export function stickCaption(side: 'left' | 'right', stickMode: StickMode): stri
   return `${AXIS_FUNCTION_NAMES[vertical]} · ${AXIS_FUNCTION_NAMES[horizontal]}`;
 }
 
-/** The line under the sticks: which device is in use, stick mode and flight mode. */
+/**
+ * The line under the sticks: which device is in use, stick mode and flight mode.
+ * @param stickMode null for a device that has its own layout, such as a flight stick
+ */
 export function statusLine(
   sourceLabel: string,
   connected: boolean,
-  stickMode: StickMode,
+  stickMode: StickMode | null,
   flightMode: FlightMode,
 ): string {
   const device = connected ? sourceLabel : `${sourceLabel} (not connected)`;
-  return `${device} · Stick mode ${stickMode} · ${FLIGHT_MODE_NAMES[flightMode]}`;
+  const parts = [device, stickMode === null ? '' : `Stick mode ${stickMode}`];
+  return [...parts, FLIGHT_MODE_NAMES[flightMode]].filter(Boolean).join(' · ');
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -114,7 +118,7 @@ export class StickMonitor {
     if (!this.visible) {
       return;
     }
-    const { frame, raw, shaped, settings, activeSource } = input;
+    const { frame, raw, shaped, stickMode, activeSource } = input;
 
     this.place(this.left.pad, raw.leftX, raw.leftY, shaped.leftX, shaped.leftY);
     this.place(this.right.pad, raw.rightX, raw.rightY, shaped.rightX, shaped.rightY);
@@ -124,13 +128,18 @@ export class StickMonitor {
       pill.classList.toggle('is-on', frame.buttons[id]);
     }
 
-    if (settings.stickMode !== this.lastStickMode) {
-      this.lastStickMode = settings.stickMode;
-      this.left.caption.textContent = stickCaption('left', settings.stickMode);
-      this.right.caption.textContent = stickCaption('right', settings.stickMode);
+    if (stickMode !== this.lastStickMode) {
+      this.lastStickMode = stickMode;
+      this.left.caption.textContent = stickCaption('left', stickMode);
+      this.right.caption.textContent = stickCaption('right', stickMode);
     }
 
-    const status = statusLine(activeSource.label, frame.connected, settings.stickMode, frame.mode);
+    const status = statusLine(
+      activeSource.label,
+      frame.connected,
+      activeSource.stickMode === undefined ? stickMode : null,
+      frame.mode,
+    );
     if (status !== this.lastStatus) {
       this.lastStatus = status;
       this.status.textContent = status;
