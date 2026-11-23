@@ -13,6 +13,7 @@ const INFO: DebugInfo = {
   timeScale: 1,
   paused: false,
   inputSource: 'Keyboard',
+  camera: 'Chase camera',
   drone: {
     phase: 'flying',
     height: 12.04,
@@ -44,6 +45,10 @@ describe('formatDebugText', () => {
 
   it('shows which control device is in use and the stick mode', () => {
     expect(formatDebugText(INFO)).toMatch(/Input\s+Keyboard · stick mode 2/);
+  });
+
+  it('shows which camera view is in use', () => {
+    expect(formatDebugText(INFO)).toMatch(/Camera\s+Chase camera/);
   });
 
   it('says when the simulation is paused', () => {

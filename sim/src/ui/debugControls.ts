@@ -18,6 +18,8 @@ export function nextTimeScale(current: number, direction: 1 | -1): number {
 export interface DebugActions {
   toggleOverlay(): void;
   toggleStickMonitor(): void;
+  /** Switch to the next camera view. */
+  nextCamera(): void;
   togglePause(): void;
   /** Advance one simulation step. Only called while paused. */
   stepOnce(): void;
@@ -33,6 +35,7 @@ export interface DebugActions {
  *
  *   ` or F2   show / hide the overlay
  *   I         show / hide the stick monitor
+ *   V         next camera view
  *   P         pause / resume
  *   .         one step forward (while paused; hold to keep stepping)
  *   − and =   slower / faster
@@ -63,6 +66,11 @@ export function bindDebugKeys(target: Window, actions: DebugActions): () => void
       case 'KeyI':
         if (!event.repeat) {
           actions.toggleStickMonitor();
+        }
+        break;
+      case 'KeyV':
+        if (!event.repeat) {
+          actions.nextCamera();
         }
         break;
       case 'KeyP':

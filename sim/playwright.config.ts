@@ -9,6 +9,11 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
   reporter: isCI ? [['github'], ['html', { open: 'never' }]] : 'list',
+  expect: {
+    // Picture comparisons: allow the small differences one machine's software renderer
+    // may have from another's, but not a view that has really changed.
+    toHaveScreenshot: { maxDiffPixelRatio: 0.01 },
+  },
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'off',

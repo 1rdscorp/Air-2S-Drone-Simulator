@@ -15,6 +15,8 @@ export interface DebugInfo {
   paused: boolean;
   /** Name of the control source in use. */
   inputSource: string;
+  /** Name of the camera view in use. */
+  camera: string;
   drone: {
     phase: FlightPhase;
     /** Height above the ground in metres. */
@@ -66,6 +68,7 @@ export function formatDebugText(info: DebugInfo): string {
     ['Speed', `${formatTimeScale(info.timeScale)}${info.paused ? ' · paused' : ''}`],
     ['Drone', formatDrone(info.drone)],
     ['Input', `${info.inputSource} · stick mode ${params.stickMode}`],
+    ['Camera', info.camera],
     ['Env', params.env ?? '–'],
     ['Time of day', params.timeOfDay === null ? '–' : `${params.timeOfDay} h`],
     ['Seed', String(params.seed)],
@@ -73,7 +76,7 @@ export function formatDebugText(info: DebugInfo): string {
   ];
   const labelWidth = Math.max(...rows.map(([label]) => label.length));
   const lines = rows.map(([label, value]) => `${label.padEnd(labelWidth)}  ${value}`);
-  lines.push('', '`/F2 overlay · I sticks · P pause · . step · − = speed · ⌫ restart');
+  lines.push('', '`/F2 overlay · I sticks · V camera · P pause · . step · − = speed · ⌫ restart');
   return lines.join('\n');
 }
 

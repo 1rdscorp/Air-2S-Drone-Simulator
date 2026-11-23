@@ -37,7 +37,10 @@ The aircraft starts on the ground with the motors off. Press **T** to take off: 
 to 1.2 m and hovers. Fly with the keys below and press **T** again to land. The line at
 the bottom of the screen always says what the aircraft is doing and which key comes next.
 
-For now the aircraft is a simple stand-in shape, and the camera follows it from behind.
+There are three camera views; press **V** to change. The chase camera follows from behind,
+the drone camera shows what the aircraft's own camera sees, and the free camera can be
+moved round the aircraft with the mouse: drag to look around, scroll to zoom.
+
 The stick monitor in the bottom-right corner shows what the simulator reads from your
 keyboard or gamepad.
 
@@ -46,6 +49,7 @@ The keyboard acts as two sticks. In stick mode 2, the usual default:
 | Key | What it does |
 |-----|--------------|
 | T | Take off; in the air: land; during a landing: cancel it |
+| V | Next camera view: chase, drone camera, free |
 | W / S | Left stick up / down: climb / descend |
 | A / D | Left stick left / right: turn left / right |
 | Arrow up / down | Right stick up / down: fly forward / backward |
