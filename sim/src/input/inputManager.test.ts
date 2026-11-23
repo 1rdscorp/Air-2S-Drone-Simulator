@@ -359,3 +359,252 @@ describe('InputManager flight mode', () => {
     expect(input.update(2).mode).toBe('C');
   });
 });
+
+describe('buttons, mode and camera tilt from every device', () => {
+  it('counts a button on another device while the active one flies', () => {
+    const { keyboard, gamepad, input } = setup();
+    gamepad.set({ rightY: 1 });
+    input.update(0);
+    expect(input.activeSource).toBe(gamepad);
+
+    // The pilot holds the stick and presses T on the keyboard.
+    keyboard.set({ buttons: { takeoffLand: true } });
+    const frame = input.update(16);
+
+    expect(input.activeSource).toBe(gamepad);
+    expect(frame.pitch).toBeGreaterThan(0.5);
+    expect(frame.buttons.takeoffLand).toBe(true);
+    expect(frame.buttons.pause).toBe(false);
+  });
+
+  it('takes a flight mode chosen on another device', () => {
+    const { keyboard, gamepad, input } = setup();
+    gamepad.set({ rightX: 1 });
+    input.update(0);
+
+    keyboard.set({ mode: 'S' });
+    expect(input.update(16).mode).toBe('S');
+    expect(input.activeSource).toBe(gamepad);
+
+    keyboard.set({});
+    expect(input.update(32).mode).toBe('S');
+  });
+
+  it('prefers the active device when both choose a mode', () => {
+    const { keyboard, gamepad, input } = setup();
+    gamepad.set({ rightX: 1 });
+    input.update(0);
+    expect(input.activeSource).toBe(gamepad);
+
+    gamepad.set({ rightX: 1, mode: 'C' });
+    keyboard.set({ mode: 'S' });
+
+    expect(input.update(16).mode).toBe('C');
+  });
+
+  it('tilts the camera from another device while the active one leaves it alone', () => {
+    const { keyboard, gamepad, input } = setup();
+    gamepad.set({ rightY: 1 });
+    input.update(0);
+
+    keyboard.set({ gimbal: -1 });
+    expect(input.update(16).gimbal).toBe(-1);
+
+    gamepad.set({ rightY: 1, gimbal: 0.5 });
+    expect(input.update(32).gimbal).toBeCloseTo(applyDeadzone(0.5, 0.1), 9);
+  });
+
+  it('does not let another device move the sticks', () => {
+    const { keyboard, gamepad, input } = setup({ expo: 0 });
+    gamepad.set({ rightY: 1 });
+    input.update(0);
+
+    keyboard.set({ leftY: 1, rightX: 1, buttons: { pause: true } });
+    const frame = input.update(16);
+
+    expect(frame.throttle).toBe(0);
+    expect(frame.roll).toBe(0);
+    expect(frame.buttons.pause).toBe(true);
+  });
+
+  it('counts nothing from anywhere while the active device is lost', () => {
+    const { keyboard, gamepad, input } = setup();
+    gamepad.set({ rightY: 1 });
+    input.update(0);
+    gamepad.connected = false;
+
+    // A key that was already held does not take over; nothing comes through.
+    const frame = input.update(16);
+    expect(frame.connected).toBe(false);
+    expect(frame.buttons).toEqual(noButtonsPressed());
+
+    keyboard.set({ buttons: { takeoffLand: true } });
+    const next = input.update(32);
+    expect(input.activeSource).toBe(keyboard);
+    expect(next.connected).toBe(true);
+    expect(next.buttons.takeoffLand).toBe(true);
+  });
+});
+
+describe('a device with its own layout', () => {
+  class FlightStick extends FakeSource {
+    readonly stickMode = 2;
+  }
+
+  it('is read in its own layout, whatever stick mode the pilot has chosen', () => {
+    const keyboard = new FakeSource('keyboard');
+    const stick = new FlightStick('joystick');
+    const input = new InputManager([keyboard, stick], { stickMode: 1, expo: 0 });
+    expect(input.stickMode).toBe(1);
+
+    stick.set({ leftY: 1, rightY: 0.5 });
+    const frame = input.update(0);
+
+    expect(input.activeSource).toBe(stick);
+    expect(input.stickMode).toBe(2);
+    expect(frame.throttle).toBe(1); // mode 2: left stick up is climb
+    expect(frame.pitch).toBe(0.5);
+  });
+
+  it("leaves the pilot's stick mode in force for the other devices", () => {
+    const keyboard = new FakeSource('keyboard');
+    const stick = new FlightStick('joystick');
+    const input = new InputManager([keyboard, stick], { stickMode: 1, expo: 0 });
+
+    keyboard.set({ leftY: 1 });
+    const frame = input.update(0);
+
+    expect(input.stickMode).toBe(1);
+    expect(frame.pitch).toBe(1); // mode 1: left stick up is forward
+  });
+});
+
+describe('a flight stick shares the flight controls with the other devices', () => {
+  /** A stick with controls for roll and pitch only, as before it is set up. */
+  class PartStick extends FakeSource {
+    readonly stickMode = 2;
+    provides: ('roll' | 'pitch' | 'yaw' | 'throttle')[] = ['roll', 'pitch'];
+  }
+
+  function bench(): { keyboard: FakeSource; stick: PartStick; input: InputManager } {
+    const keyboard = new FakeSource('keyboard');
+    const stick = new PartStick('joystick');
+    return { keyboard, stick, input: new InputManager([keyboard, stick], { expo: 0 }) };
+  }
+
+  it('takes what the stick has no control for from the keyboard', () => {
+    const { keyboard, stick, input } = bench();
+    stick.set({ rightX: 0.5, rightY: 1 });
+    input.update(0);
+    expect(input.activeSource).toBe(stick);
+
+    // W and D on the keyboard: climb and turn right (stick mode 2: the left stick).
+    keyboard.set({ leftY: 1, leftX: 1 });
+    const frame = input.update(16);
+
+    expect(input.activeSource).toBe(stick);
+    expect(frame).toMatchObject({ roll: 0.5, pitch: 1, throttle: 1, yaw: 1 });
+  });
+
+  it('lets the stick fly while the keyboard is the device in use', () => {
+    const { keyboard, stick, input } = bench();
+    keyboard.set({ leftY: 1 }); // W held: climbing
+    input.update(0);
+    expect(input.activeSource).toBe(keyboard);
+
+    stick.set({ rightY: 1, rightX: -0.4 });
+    const frame = input.update(16);
+
+    expect(input.activeSource).toBe(keyboard);
+    expect(frame).toMatchObject({ throttle: 1, pitch: 1, roll: -0.4, yaw: 0 });
+  });
+
+  it('does not take from the stick what it has no control for', () => {
+    const { keyboard, stick, input } = bench();
+    keyboard.set({ leftY: 1 });
+    input.update(0);
+
+    // Stray values where the stick has nothing: they must not turn or climb.
+    stick.set({ leftX: 1, leftY: -1, rightY: 0.5 });
+    const frame = input.update(16);
+
+    expect(frame.yaw).toBe(0);
+    expect(frame.throttle).toBe(1);
+    expect(frame.pitch).toBe(0.5);
+  });
+
+  it('prefers the active device where both have the control in use', () => {
+    const { keyboard, stick, input } = bench();
+    stick.set({ rightY: 1 });
+    input.update(0);
+
+    keyboard.set({ rightY: -1, leftY: 1 }); // arrow down, and W
+    const frame = input.update(16);
+
+    expect(frame.pitch).toBe(1); // the stick's, not the arrow key's
+    expect(frame.throttle).toBe(1);
+  });
+
+  it("reads the keyboard in the pilot's stick mode and the stick in its own", () => {
+    const keyboard = new FakeSource('keyboard');
+    const stick = new PartStick('joystick');
+    const input = new InputManager([keyboard, stick], { expo: 0, stickMode: 1 });
+    stick.set({ rightY: 1 });
+    input.update(0);
+
+    // In stick mode 1 the keyboard's right stick up is climb.
+    keyboard.set({ rightY: 1, leftX: -1 });
+    const frame = input.update(16);
+
+    expect(frame.pitch).toBe(1);
+    expect(frame.throttle).toBe(1);
+    expect(frame.yaw).toBe(-1);
+  });
+
+  it("shows the mixed result as the two sticks of the stick's layout", () => {
+    const { keyboard, stick, input } = bench();
+    stick.set({ rightY: 1 });
+    input.update(0);
+    keyboard.set({ leftY: 0.5 });
+    input.update(16);
+
+    expect(input.shaped).toEqual({ leftX: 0, leftY: 0.5, rightX: 0, rightY: 1 });
+    expect(input.raw).toEqual({ leftX: 0, leftY: 0.5, rightX: 0, rightY: 1 });
+  });
+
+  it("gives the keyboard's stick command through while the stick is at rest", () => {
+    const { keyboard, stick, input } = bench();
+    stick.set({ rightX: 1 });
+    input.update(0);
+    stick.set({});
+
+    keyboard.set({ leftX: 1, leftY: -1, rightX: -1, rightY: -1 }); // the K key
+    const frame = input.update(16);
+
+    expect(isStickCommand(frame)).toBe(true);
+  });
+
+  it('takes everything from a stick that has all four controls', () => {
+    const { keyboard, stick, input } = bench();
+    stick.provides = ['roll', 'pitch', 'yaw', 'throttle'];
+    stick.set({ leftX: 0.3, leftY: 0.6, rightX: 0.2, rightY: 1 });
+    input.update(0);
+
+    keyboard.set({ leftY: -1 });
+    const frame = input.update(16);
+
+    expect(frame).toMatchObject({ yaw: 0.3, throttle: 0.6, roll: 0.2, pitch: 1 });
+  });
+
+  it('mixes nothing between keyboard and gamepad when no flight stick is involved', () => {
+    const { keyboard, gamepad, input } = setup({ expo: 0 });
+    gamepad.set({ rightY: 1 });
+    input.update(0);
+
+    keyboard.set({ leftY: 1 });
+    const frame = input.update(16);
+
+    expect(frame.pitch).toBeGreaterThan(0.9);
+    expect(frame.throttle).toBe(0);
+  });
+});

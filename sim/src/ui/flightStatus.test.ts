@@ -49,3 +49,11 @@ describe('takeoffButtonName', () => {
     expect(takeoffButtonName('ble-bridge')).toBe('the take-off button');
   });
 });
+
+describe('takeoffButtonName with a flight stick', () => {
+  it("names the stick's own button when it has one, and the T key when it has not", () => {
+    expect(takeoffButtonName('joystick', true)).toBe('the take-off button');
+    expect(takeoffButtonName('joystick', false)).toBe('T');
+    expect(takeoffButtonName('gamepad', true)).toBe('Start');
+  });
+});

@@ -1,5 +1,5 @@
 import { applyDeadzone, clampAxis, shapeAxis } from './shaping';
-import { mapSticks } from './stickModes';
+import { AXIS_FUNCTIONS, mapSticks, sticksFromFunctions } from './stickModes';
 import {
   BUTTON_IDS,
   type ControlFrame,
@@ -25,6 +25,24 @@ const ACTIVITY_THRESHOLD = 0.3;
 
 const CENTRED: Readonly<StickPositions> = { leftX: 0, leftY: 0, rightX: 0, rightY: 0 };
 
+function clampSticks(raw: StickPositions): StickPositions {
+  return {
+    leftX: clampAxis(raw.leftX),
+    leftY: clampAxis(raw.leftY),
+    rightX: clampAxis(raw.rightX),
+    rightY: clampAxis(raw.rightY),
+  };
+}
+
+function shapeSticks(raw: StickPositions, deadzone: number, expo: number): StickPositions {
+  return {
+    leftX: shapeAxis(raw.leftX, deadzone, expo),
+    leftY: shapeAxis(raw.leftY, deadzone, expo),
+    rightX: shapeAxis(raw.rightX, deadzone, expo),
+    rightY: shapeAxis(raw.rightY, deadzone, expo),
+  };
+}
+
 function isInUse(raw: RawControls | null): boolean {
   if (!raw) {
     return false;
@@ -43,10 +61,21 @@ function isInUse(raw: RawControls | null): boolean {
 /**
  * Turns whatever device the pilot is using into one `ControlFrame`.
  *
- * One source is active at a time. Another source takes over when the pilot uses it while
- * the active one is idle, so picking up a gamepad or touching the keyboard just works.
+ * One source is active at a time and flies the aircraft with its sticks. Another source
+ * takes over when the pilot uses it while the active one is idle, so picking up a gamepad
+ * or touching the keyboard just works.
+ *
+ * Buttons, the flight mode and the camera tilt count from every source at any time. A
+ * pilot flying with a flight stick can so press T on the keyboard without letting go.
+ *
+ * A flight stick may have no control for turning or climbing. Whatever it has no control
+ * for, or leaves centred, is then taken from another device, and the stick's own controls
+ * count while another device is the active one. So the stick flies with the right hand
+ * while W, S, A and D climb and turn with the left. Without a flight stick nothing is
+ * mixed: one device has all four controls.
+ *
  * If the active source loses its device, the frame says `connected: false` with centred
- * sticks until the pilot uses another source.
+ * sticks and no buttons until the pilot uses another source.
  */
 export class InputManager {
   readonly settings: InputSettings;
@@ -93,6 +122,11 @@ export class InputManager {
     return this.shapedSticks;
   }
 
+  /** The stick mode in use: the active source's own if it has one, else the pilot's setting. */
+  get stickMode(): StickMode {
+    return this.active.stickMode ?? this.settings.stickMode;
+  }
+
   /**
    * Read all sources and build the current frame. Call once per display frame.
    * @param now current time in milliseconds
@@ -118,34 +152,67 @@ export class InputManager {
       return this.latestFrame;
     }
 
-    if (raw.mode !== null) {
-      this.mode = raw.mode;
+    // Buttons, mode and camera tilt from the other sources count as well.
+    const others: [ControlSource, RawControls][] = [];
+    for (const source of this.sources) {
+      const controls = polled.get(source);
+      if (source !== this.active && controls && source.connected) {
+        others.push([source, controls]);
+      }
+    }
+
+    const selected = raw.mode ?? others.find(([, controls]) => controls.mode !== null)?.[1].mode;
+    if (selected) {
+      this.mode = selected;
     }
 
     const { deadzone } = this.active;
-    const { expo, stickMode } = this.settings;
-    this.rawSticks = {
-      leftX: clampAxis(raw.leftX),
-      leftY: clampAxis(raw.leftY),
-      rightX: clampAxis(raw.rightX),
-      rightY: clampAxis(raw.rightY),
-    };
-    this.shapedSticks = {
-      leftX: shapeAxis(raw.leftX, deadzone, expo),
-      leftY: shapeAxis(raw.leftY, deadzone, expo),
-      rightX: shapeAxis(raw.rightX, deadzone, expo),
-      rightY: shapeAxis(raw.rightY, deadzone, expo),
-    };
+    const { expo } = this.settings;
+    const stickMode = this.stickMode;
+    const rawFunctions = mapSticks(clampSticks(raw), stickMode);
+    const functions = mapSticks(shapeSticks(raw, deadzone, expo), stickMode);
+
+    // A flight stick shares the four flight controls with the other devices.
+    const has = this.active.provides;
+    for (const name of AXIS_FUNCTIONS) {
+      if ((!has || has.includes(name)) && functions[name] !== 0) {
+        continue; // the active device has this control and is using it
+      }
+      for (const [source, controls] of others) {
+        const partOfAStick = has !== undefined || source.provides !== undefined;
+        if (!partOfAStick || (source.provides && !source.provides.includes(name))) {
+          continue;
+        }
+        const layout = source.stickMode ?? this.settings.stickMode;
+        const value = mapSticks(shapeSticks(controls, source.deadzone, expo), layout)[name];
+        if (value !== 0) {
+          functions[name] = value;
+          rawFunctions[name] = mapSticks(clampSticks(controls), layout)[name];
+          break;
+        }
+      }
+    }
+    // Shown as the two sticks of the layout in use, whichever device each value came from.
+    this.rawSticks = sticksFromFunctions(rawFunctions, stickMode);
+    this.shapedSticks = sticksFromFunctions(functions, stickMode);
 
     const buttons = noButtonsPressed();
     for (const id of BUTTON_IDS) {
-      buttons[id] = raw.buttons[id] === true;
+      buttons[id] =
+        raw.buttons[id] === true || others.some(([, controls]) => controls.buttons[id] === true);
+    }
+
+    let gimbal = applyDeadzone(raw.gimbal, deadzone);
+    for (const [source, controls] of others) {
+      if (gimbal === 0) {
+        gimbal = applyDeadzone(controls.gimbal, source.deadzone);
+      }
     }
 
     this.latestFrame = {
       t: now,
-      ...mapSticks(this.shapedSticks, stickMode),
-      gimbal: applyDeadzone(raw.gimbal, deadzone),
+      ...functions,
+      gimbal,
       mode: this.mode,
       buttons,
       connected: true,

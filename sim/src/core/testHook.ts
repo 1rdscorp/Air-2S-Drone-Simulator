@@ -1,5 +1,7 @@
 import type { AudioSnapshot } from '../audio/audioEngine';
 import type { CameraMode } from '../camera/cameraRig';
+import type { JoystickMapping } from '../input/joystickMapping';
+import type { JoystickStatus } from '../input/joystickSource';
 import type { ButtonId, ControlFrame, StickMode, StickPositions } from '../input/types';
 import type { SimParams } from './params';
 import type { SimState } from './simulation';
@@ -40,6 +42,17 @@ export interface InputSnapshot {
   raw: StickPositions;
   /** Stick positions after deadzone and expo. */
   shaped: StickPositions;
+}
+
+/** The flight stick: whether one is there, and the setup in use. */
+export interface JoystickSnapshot {
+  status: JoystickStatus;
+  /** The setup saved by the pilot, or null when there is none. */
+  mapping: JoystickMapping | null;
+  /** Names of the flight devices the browser shows. */
+  devices: string[];
+  /** True while the setup screen is open. */
+  setupOpen: boolean;
 }
 
 /** Where the view is right now. */
@@ -95,6 +108,8 @@ export interface SimHook {
   getCamera(): CameraSnapshot;
   /** What the sound is doing right now, with the loudness measured at the output. */
   getAudio(): AudioSnapshot;
+  /** The flight stick and its setup. */
+  getJoystick(): JoystickSnapshot;
 }
 
 declare global {

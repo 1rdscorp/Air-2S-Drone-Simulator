@@ -60,27 +60,6 @@ body {
   display: none;
 }
 
-#status-badge {
-  /* Top right, under the camera and sound labels: the top centre belongs to the compass. */
-  position: fixed;
-  top: 80px;
-  right: 14px;
-  margin: 0;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgb(13 17 23 / 78%);
-  color: #ffd166;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  pointer-events: none;
-  user-select: none;
-}
-
-#status-badge[hidden] {
-  display: none;
-}
-
 #flight-status {
   position: fixed;
   left: 50%;
@@ -104,10 +83,21 @@ body {
   display: none;
 }
 
-#camera-label {
+/* Top right: what view, whether there is sound, the flight stick, and paused / speed.
+   One column, so a label that is not shown leaves no gap. */
+#corner-labels {
   position: fixed;
   top: 12px;
   right: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: none;
+  user-select: none;
+}
+
+#corner-labels p {
   margin: 0;
   padding: 5px 12px;
   border-radius: 999px;
@@ -115,31 +105,32 @@ body {
   color: rgb(230 237 243 / 90%);
   font-size: 12px;
   letter-spacing: 0.02em;
-  pointer-events: none;
-  user-select: none;
 }
 
-#camera-label:empty {
+#corner-labels p:empty,
+#corner-labels p[hidden] {
   display: none;
 }
 
-#sound-label {
-  position: fixed;
-  top: 46px;
-  right: 14px;
-  margin: 0;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: rgb(13 17 23 / 70%);
-  color: rgb(230 237 243 / 90%);
-  font-size: 12px;
-  letter-spacing: 0.02em;
-  pointer-events: none;
-  user-select: none;
+/* The flight stick label can be clicked to open the setup. */
+#stick-label {
+  cursor: pointer;
+  pointer-events: auto;
 }
 
-#sound-label:empty {
-  display: none;
+#stick-label.needs-setup {
+  background: #ffd166;
+  color: #0d1117;
+  font-weight: 600;
+}
+
+#corner-labels #status-badge {
+  padding: 6px 14px;
+  background: rgb(13 17 23 / 78%);
+  color: #ffd166;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
 }
 
 /* Free camera: the picture can be dragged with the mouse. */
@@ -643,4 +634,138 @@ body {
   .hud-toasts {
     top: 178px;
   }
+}
+
+/* ---- Flight stick setup ---------------------------------------------------------------- */
+
+#joystick-setup {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(13 17 23 / 55%);
+}
+
+#joystick-setup[hidden] {
+  display: none;
+}
+
+.js-panel {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 20px 24px;
+  border-radius: 14px;
+  background: #161b22;
+  color: #e6edf3;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 50%);
+}
+
+.js-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.js-heading {
+  margin: 0;
+  color: rgb(230 237 243 / 70%);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.js-counter {
+  color: rgb(230 237 243 / 70%);
+  font-size: 13px;
+}
+
+.js-title {
+  margin: 10px 0 4px;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.js-ask {
+  min-height: 3em;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.js-track {
+  height: 8px;
+  margin: 12px 0 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.js-bar {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: #ffd166;
+}
+
+.js-note {
+  min-height: 1.4em;
+  margin: 0 0 8px;
+  color: #7ee787;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+#joystick-setup[data-phase='summary'] .js-note {
+  color: #e6edf3;
+}
+
+.js-live {
+  max-height: 150px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 8px;
+  background: #0d1117;
+  color: rgb(230 237 243 / 75%);
+  font:
+    12px/1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+
+.js-live:empty {
+  display: none;
+}
+
+.js-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.js-button {
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffd166;
+  color: #0d1117;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.js-button.js-quiet {
+  background: rgb(255 255 255 / 12%);
+  color: #e6edf3;
+  font-weight: 600;
 }

@@ -231,7 +231,7 @@ config file.
 
 ## 6. Roadmap
 
-35 steps in 7 milestones. Steps 01–20 need no DJI hardware. Tick a step when it is done
+36 steps in 7 milestones (35 planned at the start, and 09a added later). Steps 01–20 need no DJI hardware. Tick a step when it is done
 and add a line to the decision log (section 9) if something changed.
 
 ### Milestone 0 — Foundation
@@ -297,6 +297,14 @@ and add a line to the decision log (section 9) if something changed.
     placeholder, flight time, compass, attitude and home-direction indicator, gimbal
     angle, message toasts.
   - Done when: a Playwright test sees HUD values change with the simulation state.
+- [ ] **09a — Flight sticks** — added on 2026-11-23 at the owner's request, for a WINWING
+  Orion 2 stick with the F-16 grip. Built; **waiting for the owner to try it with the real
+  stick.**
+  - Build: flight sticks, throttles and pedals as their own kind of device, also several
+    at once; a setup screen that asks for each control and is answered by moving it; the
+    setup saved in the browser; keyboard and stick usable together.
+  - Done when: a made-up flight stick is set up and flown in a browser test (done), and
+    the owner has flown with the real one.
 
 ### Milestone 2 — World system
 
@@ -534,6 +542,15 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 30 — Tones: rising for take-off, falling for landing, one note per flight mode (higher for faster modes), harsh notes for the emergency stop and a lost controller, a dull knock for touching and hitting the ground. Starting and stopping the motors has no tone; the motors themselves are heard running up and down.
 - 2026-11-23 — step 30 — Sound starts with the first key press or click, because browsers do not allow it earlier; a label says so. M switches it off and on; `?sound=0` starts without it and `?volume=` sets the loudness (default 0.7) until the settings screen exists (Step 34). It is silent while paused and while the page is in the background.
 - 2026-11-23 — step 30 — The sound was checked by measuring, not by ear: a browser test measures the loudness and the strongest frequency at the output, and `sim/scripts/render-sound.mjs` renders a test flight to a file and lists what is in it — the build session cannot play sound. How it sounds to a person is for the owner to judge.
+- 2026-11-23 — step 09a — Flight sticks were added as an extra step, at the owner's request — the owner has a WINWING Orion 2 stick with the F-16 grip; the check page showed how the browser (Firefox) reports it.
+- 2026-11-23 — step 09a — Only a device with the browser's standard layout is read as a game controller; every other one is a flight stick — until now any device with four axes was read as a game controller, so a flight stick's left / right turned the aircraft and an axis resting at one end made it climb or spin by itself.
+- 2026-11-23 — step 09a — The pilot shows the simulator which control is which, on a setup screen opened with J: it asks for one control at a time and is answered by moving that control; the direction of the movement tells whether the axis is reversed. Nothing is assumed about a model — axes and buttons of flight sticks arrive as plain numbered lists, different for every model and browser.
+- 2026-11-23 — step 09a — Before the setup, only the stick's first two axes are used (left / right, forward / back); climbing and turning stay on the keyboard — that much is the same on every joystick, and it flies at once.
+- 2026-11-23 — step 09a — With a flight stick, the keyboard keeps working at the same time: buttons, flight mode and camera tilt count from every device, and whichever of the four flight controls the stick has no control for comes from the keyboard. This relaxes the Step 03 rule "one device at a time", but only for buttons and when a flight stick is involved; keyboard and gamepad are still not mixed.
+- 2026-11-23 — step 09a — A lever that stays where it is put (a throttle) is recognised in the setup and gets a middle zone, a fifth of its travel to either side, that means "hold the height" — a drone's climb control springs back to the middle, a throttle lever does not, and without the zone the middle could not be found by hand. The pilot can overrule the recognition.
+- 2026-11-23 — step 09a — The setup is kept in the browser's storage, one setup for all devices together; if one of its devices is unplugged the stick does not fly at all — with the throttle gone, half a setup would fly without height control. The simulation is paused while the setup screen is open, and no key reaches the aircraft.
+- 2026-11-23 — step 09a — Not done: calibration of end stops and centre (the device's own software does that), buttons for return to home, record and photo (they do nothing yet), and Chrome's way of reporting a hat switch, of which only "up" can be used as a button; in Firefox a hat works in every direction.
+- 2026-11-23 — step 09a — Tested with made-up devices only — no flight stick can be plugged into the build session. Which axis the real stick's thumb control is, and whether its hat arrives as buttons or as axes, is not known; the setup screen is built not to need to know.
 
 ---
 

@@ -46,6 +46,20 @@ describe('GamepadSource', () => {
     expect(source.poll()?.leftX).toBe(0.5);
   });
 
+  it('leaves flight sticks and other devices without the standard layout alone', () => {
+    // Read as a game controller, a flight stick's axes would mean the wrong things.
+    const stick = fakePad({
+      id: 'WINCTRL Orion Joystick Base Metal 2 + JGRIP-F16 (Vendor: 4098 Product: bea8)',
+      mapping: '',
+      axes: [1, 1, 0, 0, 0, 0, -1, 0],
+    });
+    const source = sourceFor(stick);
+
+    expect(source.connected).toBe(false);
+    expect(source.poll()).toBeNull();
+    expect(sourceFor(stick, fakePad({ axes: [0.5, 0, 0, 0] })).poll()?.leftX).toBe(0.5);
+  });
+
   it('skips devices without two sticks', () => {
     const source = sourceFor(fakePad({ axes: [0, 0] }));
 
