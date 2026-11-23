@@ -3,8 +3,9 @@
 A 3D drone flight simulator for the browser, flown with a real DJI Smart Controller over
 Bluetooth. Environments: mountains, city, ocean and beach, with day / night and weather.
 
-The project is built in small numbered steps. So far it shows a first lit 3D scene; the
-drone, the environments and the controller link come in later steps.
+The project is built in small numbered steps. So far the aircraft can be flown over a
+flat test field with the keyboard or a gamepad, with three camera views and a flight
+display; the environments and the controller link come in later steps.
 
 ## Try it online
 
@@ -44,6 +45,18 @@ moved round the aircraft with the mouse: drag to look around, scroll to zoom.
 The drone camera is stabilised like the real one: the horizon stays level however the
 aircraft tilts, and only you tilt the camera, with R and F. To let it also look up to 24°
 above level, add `?gimbalup=1` to the address.
+
+The flight display shows what a pilot needs while flying:
+
+- **Top left:** flight mode, flight time since the motors started, and the battery
+  (always 100 % for now; the battery comes in a later step).
+- **Top centre:** a compass with the direction the aircraft faces. The small **H** shows
+  in which direction home is; home is the spot where the motors were started.
+- **Bottom left:** a horizon that tilts as the aircraft tilts, with an **H** on its rim
+  that points to home (top = straight ahead). Next to it: height, distance from home,
+  speed over the ground, climb rate and camera tilt.
+- **Under the compass:** short messages such as "Taking off" or "Sport mode"; warnings
+  are red.
 
 The stick monitor in the bottom-right corner shows what the simulator reads from your
 keyboard or gamepad.

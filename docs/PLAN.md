@@ -270,7 +270,7 @@ and add a line to the decision log (section 9) if something changed.
     0°, optional +24°; dial and key control with rate limit and smoothing; correct field
     of view; recentre and look-down shortcuts.
   - Done when: tests show camera roll stays 0° at 30° drone roll and tilt is clamped.
-- [ ] **09 — HUD v1**
+- [x] **09 — HUD v1**
   - Build: height, distance from home, horizontal and vertical speed, mode, battery
     placeholder, flight time, compass, attitude and home-direction indicator, gimbal
     angle, message toasts.
@@ -486,6 +486,12 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 08 — Field of view of the drone camera: DJI's 88° is across the diagonal of the 3:2 photo; that is 77.6° from side to side, which agrees with the published 22 mm equivalent lens. The width of the view is fixed at that value and the height follows the window's shape (48.6° on a 16:9 screen). The chase and free views keep 55°.
 - 2026-11-23 — step 08 — Picture tests are now strict: at most 100 differing pixels, with a finer colour threshold — the 1 % allowance of Step 07 let the field-of-view change through unnoticed, because this scene is mostly flat sky and ground. Unchanged views are identical to the last pixel from run to run.
 - 2026-11-23 — step 08 — The camera pod of the model stays level and tilts with the gimbal, so stabilisation can be seen from the chase and free views.
+- 2026-11-23 — step 09 — Home point and flight time are part of the simulation state: starting the motors records the spot as home and sets the clock to zero; the clock runs while the motors run, also on the ground, and keeps its value after they stop — Return-to-Home (Step 26) needs the same home point, and a display fed only by simulation state is the same on every run.
+- 2026-11-23 — step 09 — Flight display layout, our own design: mode, flight time and battery top left; a compass tape top centre with the heading and a mark for the direction of home; a horizon instrument bottom left with the direction to home on its rim, next to height, distance from home, speed, climb rate and camera tilt. Metric units only until the settings screen (Step 34).
+- 2026-11-23 — step 09 — The battery always reads 100 % — the battery model is Step 26.
+- 2026-11-23 — step 09 — Closer than 0.5 m to home the two home marks are hidden — there is no meaningful direction to a point straight below.
+- 2026-11-23 — step 09 — Messages: the simulation reports what happens in a flight (take-off, landing, mode change, emergency stop, lost controller, ...) as flight events, and the display turns them into short messages under the compass. They last 4 simulated seconds, warnings 7, at most three at once, and a newer message about the same subject replaces the older one — so a test that steps the simulation always sees the same messages, and they stay while paused.
+- 2026-11-23 — step 09 — The line at the bottom that says which key comes next stays as it is. The "Paused / Speed" badge moved to the top right and the debug overlay moved down, to make room for the compass and the top row.
 
 ---
 

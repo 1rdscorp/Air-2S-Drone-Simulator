@@ -10,6 +10,7 @@ import {
 } from './air2s.config';
 import type { DroneState } from './droneState';
 import { type Sticks, updatePhase } from './flightPhase';
+import { updateFlightRecord } from './flightRecord';
 import { stepGimbal } from './gimbal';
 
 /** Height of the ground. Flat for now. TODO(step-10): ask the environment. */
@@ -72,7 +73,9 @@ export function stepDrone(
 
   const buttons = live ? controls.buttons : NO_BUTTONS;
 
+  const phaseBefore = state.phase;
   updatePhase(state, sticks, buttons, dt);
+  updateFlightRecord(state, phaseBefore, dt);
   stepGimbal(state, live ? controls.gimbal : 0, buttons, dt, options.gimbalUpward);
 
   const limits = MODE_LIMITS[controls.mode];

@@ -82,6 +82,9 @@ scene is mostly flat sky and ground, so even a clearly different view changes we
 
 - When such a test fails, look at the actual picture before anything else. If the view
   changed by mistake, fix the code.
+- The tests hide everything on top of the 3D view with `visibility: hidden` on `#hud` and
+  the other overlays. An element that sets its own `visibility` stays visible and ends up
+  in the pictures, so show and hide parts of an overlay with `hidden` or `display`.
 - Only when the view was meant to change, renew the references inside `sim/` with
   `npx playwright test --update-snapshots=all`, look at every new picture, and commit them.
 - After a change that should alter a view, check that the old reference really fails
@@ -132,6 +135,13 @@ scene is mostly flat sky and ground, so even a clearly different view changes we
 - The camera gimbal is part of the simulation state (`gimbalTilt` in `DroneState`, moved by
   `sim/src/drone/gimbal.ts`). Its tilt is measured against the horizon: 0 is level, −90°
   is straight down. The drone camera view and the model's camera pod both read it.
+- The flight display is `sim/src/ui/hud.ts`. It only shows numbers that `hudValues`
+  (`sim/src/ui/hudValues.ts`) reads off the simulation state, and every value carries a
+  `data-hud` name that browser tests read (see `sim/e2e/hud.spec.ts`). The home point and
+  the flight time are in `DroneState` (`sim/src/drone/flightRecord.ts`).
+- Messages to the pilot come from flight events: `Simulation` reports what happened in a
+  step (`sim/src/drone/flightEvents.ts`), `sim/src/ui/flightMessages.ts` has the words.
+  Events are a report and never change the flight. Messages live in simulated time.
 - Do not draw long lines with line geometry (`GridHelper`, `Line`, `LineSegments`): the
   software renderer misplaces lines that pass behind the camera. Use textures or meshes.
 - Secrets (the DJI app key) come from a local file or CI secret and are never committed.

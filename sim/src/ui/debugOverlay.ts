@@ -2,6 +2,7 @@ import { SIM_HZ } from '../core/gameLoop';
 import type { SimParams } from '../core/params';
 import type { FlightPhase } from '../drone/droneState';
 import { PHASE_LABELS } from './flightStatus';
+import { formatGimbal } from './hudValues';
 
 export interface DebugInfo {
   fps: number;
@@ -56,15 +57,6 @@ export function formatDrone(drone: DebugInfo['drone']): string {
     `${heading}°`,
   ];
   return parts.join(' · ');
-}
-
-/** Camera tilt for display, for example "−45°" (looking down) or "+10°". Level is "0°". */
-export function formatGimbal(degrees: number): string {
-  const rounded = Math.round(degrees);
-  if (rounded === 0) {
-    return '0°';
-  }
-  return `${rounded > 0 ? '+' : '−'}${Math.abs(rounded)}°`;
 }
 
 /** The overlay text. A pure function, so it can be tested without a browser. */

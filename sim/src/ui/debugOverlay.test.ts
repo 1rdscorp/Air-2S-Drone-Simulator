@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS } from '../core/params';
-import {
-  type DebugInfo,
-  formatDebugText,
-  formatDrone,
-  formatGimbal,
-  formatTimeScale,
-} from './debugOverlay';
+import { type DebugInfo, formatDebugText, formatDrone, formatTimeScale } from './debugOverlay';
 
 const INFO: DebugInfo = {
   fps: 59.94,
@@ -132,20 +126,6 @@ describe('formatDrone', () => {
     const falling = { ...INFO.drone, phase: 'motorsOff' as const, climbRate: -18 };
 
     expect(formatDrone(falling)).toMatch(/^falling · 12\.0 m · .* climb −18\.0 m\/s/);
-  });
-});
-
-describe('formatGimbal', () => {
-  it('shows level as 0°, looking down with a minus and looking up with a plus', () => {
-    expect(formatGimbal(0)).toBe('0°');
-    expect(formatGimbal(-90)).toBe('−90°');
-    expect(formatGimbal(-44.6)).toBe('−45°');
-    expect(formatGimbal(24)).toBe('+24°');
-  });
-
-  it('never shows minus zero', () => {
-    expect(formatGimbal(-0.2)).toBe('0°');
-    expect(formatGimbal(0.3)).toBe('0°');
   });
 });
 

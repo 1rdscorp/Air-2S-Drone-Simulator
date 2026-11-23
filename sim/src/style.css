@@ -37,9 +37,10 @@ body {
 }
 
 #debug-overlay {
+  /* Below the flight display's top row. */
   position: fixed;
-  top: 10px;
-  left: 10px;
+  top: 58px;
+  left: 14px;
   margin: 0;
   padding: 10px 12px;
   border-radius: 6px;
@@ -60,10 +61,10 @@ body {
 }
 
 #status-badge {
+  /* Top right, under the camera label: the top centre belongs to the compass. */
   position: fixed;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 48px;
+  right: 14px;
   margin: 0;
   padding: 6px 14px;
   border-radius: 999px;
@@ -295,4 +296,315 @@ body {
 
 #message[hidden] {
   display: none;
+}
+
+/* ---- Flight display ------------------------------------------------------------------ */
+
+#hud {
+  --hud-panel: rgb(13 17 23 / 74%);
+  --hud-text: #e6edf3;
+  --hud-dim: rgb(230 237 243 / 70%);
+  --hud-accent: #ffd166;
+
+  position: fixed;
+  inset: 0;
+  color: var(--hud-text);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+#hud[hidden] {
+  display: none;
+}
+
+.hud-panel {
+  background: var(--hud-panel);
+}
+
+.hud-label {
+  color: var(--hud-dim);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hud-value {
+  font-weight: 600;
+}
+
+.hud-unit {
+  margin-left: 4px;
+  color: var(--hud-dim);
+  font-size: 0.7em;
+  font-weight: 500;
+}
+
+/* Top left: flight mode, flight time, battery. */
+.hud-top {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 5px 14px 5px 5px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+.hud-mode {
+  min-width: 58px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #e6edf3;
+  color: #0d1117;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.hud-mode[data-mode='C'] {
+  background: #7dd3c8;
+}
+
+.hud-mode[data-mode='S'] {
+  background: #ff9f43;
+}
+
+.hud-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.hud-battery-icon {
+  width: 27px;
+  height: 12px;
+}
+
+.hud-battery-case {
+  fill: none;
+  stroke: var(--hud-dim);
+}
+
+.hud-battery-tip {
+  fill: var(--hud-dim);
+}
+
+.hud-battery-fill {
+  fill: #7ee787;
+}
+
+/* Top centre: compass tape. */
+.hud-compass {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 300px;
+  transform: translateX(-50%);
+}
+
+.hud-compass-window {
+  position: relative;
+  width: 300px;
+  height: 40px;
+}
+
+.hud-tape {
+  display: block;
+  width: 300px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--hud-panel);
+  /* The tape fades out towards both ends; the home mark on top of it does not. */
+  mask-image: linear-gradient(to right, transparent, #000 16%, #000 84%, transparent);
+}
+
+.hud-tape-tick {
+  stroke: var(--hud-dim);
+  stroke-width: 1;
+}
+
+.hud-tape-label {
+  fill: var(--hud-dim);
+  font-size: 10px;
+  text-anchor: middle;
+}
+
+.hud-tape-label.is-cardinal {
+  fill: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hud-compass-needle {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 2px;
+  height: 13px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--hud-accent);
+}
+
+/* The direction of home on the tape. */
+.hud-compass-home {
+  position: absolute;
+  top: 1px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--hud-accent);
+  color: #0d1117;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 11px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.hud-compass-home[hidden] {
+  display: none;
+}
+
+.hud-compass-readout {
+  margin: 0;
+  padding: 2px 12px;
+  border-radius: 999px;
+  font-size: 15px;
+}
+
+/* Messages, under the compass. They stay readable on top of the debug overlay. */
+.hud-toasts {
+  position: absolute;
+  top: 92px;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+}
+
+.hud-toast {
+  margin: 0;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgb(13 17 23 / 84%);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.hud-toast.is-warning {
+  background: #b3261e;
+  color: #fff;
+}
+
+/* Bottom left: horizon instrument and the numbers. */
+.hud-flight {
+  position: absolute;
+  bottom: 36px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 18px 8px 8px;
+  border-radius: 14px;
+}
+
+.hud-attitude {
+  width: 116px;
+  height: 116px;
+}
+
+.hud-sky {
+  fill: #3f86c9;
+}
+
+.hud-ground {
+  fill: #7b5b3c;
+}
+
+.hud-horizon-line {
+  stroke: #fff;
+  stroke-width: 1.2;
+}
+
+.hud-pitch-line {
+  stroke: rgb(255 255 255 / 70%);
+  stroke-width: 0.8;
+}
+
+.hud-rim {
+  fill: none;
+  stroke: rgb(230 237 243 / 85%);
+  stroke-width: 1.5;
+}
+
+.hud-roll-tick {
+  stroke: var(--hud-dim);
+  stroke-width: 1;
+}
+
+.hud-roll,
+.hud-nose,
+.hud-home-disc {
+  fill: var(--hud-accent);
+}
+
+.hud-wings {
+  fill: none;
+  stroke: var(--hud-accent);
+  stroke-linecap: round;
+  stroke-width: 2.6;
+}
+
+.hud-home-letter {
+  fill: #0d1117;
+  font-size: 9px;
+  font-weight: 700;
+  dominant-baseline: central;
+  text-anchor: middle;
+}
+
+.hud-readouts {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 6px 20px;
+  margin: 0;
+}
+
+.hud-readout {
+  display: flex;
+  flex-direction: column;
+  min-width: 84px;
+}
+
+.hud-readout dd {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+/* Narrow windows: the compass moves under the top row so the two do not overlap. */
+@media (width < 900px) {
+  .hud-compass {
+    top: 52px;
+  }
+
+  .hud-toasts {
+    top: 134px;
+  }
 }
