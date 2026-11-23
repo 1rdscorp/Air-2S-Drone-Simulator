@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isStickCommand } from '../drone/flightPhase';
 import { DEFAULT_INPUT_SETTINGS, InputManager } from './inputManager';
 import { applyDeadzone, shapeAxis } from './shaping';
 import {
@@ -169,6 +170,35 @@ describe('InputManager mapping and shaping', () => {
     expect(input.raw).toEqual({ leftX: 0.05, leftY: 0.55, rightX: 0, rightY: 0 });
     expect(input.shaped.leftX).toBe(0);
     expect(input.shaped.leftY).toBeCloseTo(0.5, 12);
+  });
+});
+
+describe('InputManager and the stick command', () => {
+  it('turns "both sticks down and inward" into the same stick command in every stick mode', () => {
+    for (const stickMode of [1, 2, 3] as const) {
+      const { keyboard, input } = setup({ stickMode });
+      keyboard.set({ leftX: 1, leftY: -1, rightX: -1, rightY: -1 });
+
+      const frame = input.update(1);
+
+      expect(isStickCommand(frame), `stick mode ${stickMode}`).toBe(true);
+    }
+  });
+
+  it('does the same for "both sticks down and outward"', () => {
+    for (const stickMode of [1, 2, 3] as const) {
+      const { keyboard, input } = setup({ stickMode });
+      keyboard.set({ leftX: -1, leftY: -1, rightX: 1, rightY: -1 });
+
+      expect(isStickCommand(input.update(1)), `stick mode ${stickMode}`).toBe(true);
+    }
+  });
+
+  it('does not see a stick command in ordinary stick positions', () => {
+    const { keyboard, input } = setup();
+    keyboard.set({ leftX: 1, leftY: -1, rightX: 1, rightY: -1 }); // both sticks to the right
+
+    expect(isStickCommand(input.update(1))).toBe(false);
   });
 });
 

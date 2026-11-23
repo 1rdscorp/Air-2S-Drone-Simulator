@@ -6,15 +6,18 @@
  *   AIR_2S_SPECS   Values DJI publishes. Each has its source next to it. Checked on
  *                  2026-11-23 through web search of the pages named below; the pages
  *                  themselves could not be opened from the build session.
- *   NORMAL_TUNING  Values DJI does not publish (how quickly the aircraft reacts). They
+ *   MODE_TUNING    Values DJI does not publish (how quickly the aircraft reacts). They
  *                  are tuned by feel and by the tests, and are the ones to change when
- *                  the flight does not feel right.
+ *                  the flight does not feel right. The same goes for CINE_CHOSEN and
+ *                  FLIGHT_PROCEDURE.
  *
  * Sources:
  *   [support]  DJI support page, https://www.dji.com/support/product/air-2s
  *   [info]     DJI product page, https://www.dji.com/air-2s/info
  *   [manual]   DJI Air 2S User Manual
  */
+
+import type { FlightMode } from '../input/types';
 
 const DEG = Math.PI / 180;
 
@@ -99,15 +102,38 @@ export const AIR_2S_SPECS = {
 } as const;
 
 /**
- * Limits for Normal mode, all published.
- * TODO(step-06): add Cine and Sport. Cine needs chosen values where DJI publishes none.
+ * Cine mode values that DJI does not publish, chosen to give the slow, smooth flight the
+ * mode is for. Tuned, not measured.
  */
-export const NORMAL_LIMITS: ModeLimits = {
-  maxSpeed: AIR_2S_SPECS.maxSpeed.N,
-  maxAscent: AIR_2S_SPECS.maxAscent.N,
-  maxDescent: AIR_2S_SPECS.maxDescent.N,
-  maxYawRate: AIR_2S_SPECS.maxYawRate.N,
-  maxTilt: AIR_2S_SPECS.maxTilt.N,
+export const CINE_CHOSEN = {
+  maxAscent: 2,
+  maxDescent: 2,
+  maxTilt: 12 * DEG,
+} as const;
+
+/** The limits of each flight mode. Published where DJI publishes them, chosen for Cine. */
+export const MODE_LIMITS: Record<FlightMode, ModeLimits> = {
+  C: {
+    maxSpeed: AIR_2S_SPECS.maxSpeed.C,
+    maxAscent: CINE_CHOSEN.maxAscent,
+    maxDescent: CINE_CHOSEN.maxDescent,
+    maxYawRate: AIR_2S_SPECS.maxYawRate.C,
+    maxTilt: CINE_CHOSEN.maxTilt,
+  },
+  N: {
+    maxSpeed: AIR_2S_SPECS.maxSpeed.N,
+    maxAscent: AIR_2S_SPECS.maxAscent.N,
+    maxDescent: AIR_2S_SPECS.maxDescent.N,
+    maxYawRate: AIR_2S_SPECS.maxYawRate.N,
+    maxTilt: AIR_2S_SPECS.maxTilt.N,
+  },
+  S: {
+    maxSpeed: AIR_2S_SPECS.maxSpeed.S,
+    maxAscent: AIR_2S_SPECS.maxAscent.S,
+    maxDescent: AIR_2S_SPECS.maxDescent.S,
+    maxYawRate: AIR_2S_SPECS.maxYawRate.S,
+    maxTilt: AIR_2S_SPECS.maxTilt.S,
+  },
 };
 
 /** Gravity in m/s². */
@@ -150,24 +176,81 @@ export interface FlightTuning {
   altitudeMaxSpeed: number;
 }
 
-/** Tuning for Normal mode. TODO(step-06): add Cine and Sport and use the selected mode. */
-export const NORMAL_TUNING: FlightTuning = {
-  velocityGain: 2,
-  attitudeFrequency: 10,
-  attitudeDamping: 1,
-  maxTiltRate: 200 * DEG,
-  verticalGain: 3,
-  maxUpAcceleration: 4.5,
-  maxDownAcceleration: 4,
-  yawGain: 6,
-  maxYawAcceleration: 300 * DEG,
+/** Position and height hold behave the same in every mode. */
+const HOLD_TUNING = {
   holdLatchSpeed: 0.2,
   holdGain: 1,
   holdMaxSpeed: 2,
   altitudeLatchSpeed: 0.15,
   altitudeGain: 1.5,
   altitudeMaxSpeed: 1,
+} as const;
+
+/**
+ * How each mode feels. Cine reacts slowly and smoothly, Sport quickly and sharply.
+ * These are the values to change when a mode does not feel right.
+ */
+export const MODE_TUNING: Record<FlightMode, FlightTuning> = {
+  C: {
+    velocityGain: 1,
+    attitudeFrequency: 6,
+    attitudeDamping: 1,
+    maxTiltRate: 90 * DEG,
+    verticalGain: 2,
+    maxUpAcceleration: 2,
+    maxDownAcceleration: 2,
+    yawGain: 3,
+    maxYawAcceleration: 120 * DEG,
+    ...HOLD_TUNING,
+  },
+  N: {
+    velocityGain: 2,
+    attitudeFrequency: 10,
+    attitudeDamping: 1,
+    maxTiltRate: 200 * DEG,
+    verticalGain: 3,
+    maxUpAcceleration: 4.5,
+    maxDownAcceleration: 4,
+    yawGain: 6,
+    maxYawAcceleration: 300 * DEG,
+    ...HOLD_TUNING,
+  },
+  S: {
+    velocityGain: 2.5,
+    attitudeFrequency: 12,
+    attitudeDamping: 1,
+    maxTiltRate: 300 * DEG,
+    verticalGain: 3,
+    maxUpAcceleration: 4.5,
+    maxDownAcceleration: 4,
+    yawGain: 8,
+    maxYawAcceleration: 700 * DEG,
+    ...HOLD_TUNING,
+  },
 };
 
-/** Height of the aircraft's underside above the ground when the simulator starts, in metres. */
-export const START_HEIGHT = 2;
+/**
+ * Take-off, landing and motor start / stop. Chosen to match how the aircraft is
+ * described to behave; none of these numbers were checked against a DJI page.
+ */
+export const FLIGHT_PROCEDURE = {
+  /** Automatic take-off climbs to this height and hovers, in metres. */
+  takeoffHeight: 1.2,
+  /** Fastest climb during automatic take-off, in m/s. */
+  takeoffClimbSpeed: 1.5,
+  /** How firmly the take-off closes in on hover height, in 1/s. Higher overshoots. */
+  takeoffGain: 1.2,
+  /** Automatic landing: descent speed high up, and the gentle speed just before touchdown, in m/s. */
+  landingSpeed: 3,
+  landingTouchdownSpeed: 0.5,
+  /** Automatic landing slows down below this height, in metres. */
+  landingSlowHeight: 7,
+  /** How far each stick must be pushed into its corner for the stick command, 0 to 1. */
+  stickCommandThreshold: 0.9,
+  /** Stick command on the ground: seconds to hold before the motors start or stop. */
+  stickCommandHold: 0.25,
+  /** Stick command in the air: seconds to hold before the motors are cut (emergency stop). */
+  emergencyStopHold: 2,
+  /** On the ground with motors running: seconds of throttle held fully down before they stop. */
+  throttleDownStopHold: 3,
+} as const;

@@ -1,16 +1,20 @@
-import type { ControlFrame } from '../input/types';
+import { type ControlFrame, noButtonsPressed } from '../input/types';
 import {
   DRAG,
+  FLIGHT_PROCEDURE,
   type FlightTuning,
   GRAVITY,
+  MODE_LIMITS,
+  MODE_TUNING,
   type ModeLimits,
-  NORMAL_LIMITS,
-  NORMAL_TUNING,
 } from './air2s.config';
 import type { DroneState } from './droneState';
+import { type Sticks, updatePhase } from './flightPhase';
 
 /** Height of the ground. Flat for now. TODO(step-10): ask the environment. */
 const GROUND_HEIGHT = 0;
+
+const NO_BUTTONS = noButtonsPressed();
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -23,11 +27,14 @@ function stick(value: number): number {
 /**
  * Advances the aircraft by one fixed step.
  *
- * It works the way a camera drone does. The pilot does not steer motors; the sticks ask
- * the flight controller for a speed, a climb rate and a turn rate:
+ * First the flight phase is decided (see `updatePhase`): motors off, idle on the ground,
+ * automatic take-off, flying, or automatic landing. Then the aircraft moves accordingly.
+ *
+ * In powered flight it works the way a camera drone does. The pilot does not steer
+ * motors; the sticks ask the flight controller for a speed, a climb rate and a turn rate:
  *
  *   1. Sticks -> target speed over the ground (in the direction the nose points),
- *      target climb rate, target turn rate.
+ *      target climb rate, target turn rate. The limits come from the flight mode.
  *   2. Speed error -> wanted acceleration -> wanted tilt, limited to the largest tilt.
  *   3. The aircraft takes a moment to reach that tilt.
  *   4. Tilt accelerates the aircraft; air drag slows it.
@@ -36,35 +43,92 @@ function stick(value: number): number {
  * @param state changed in place
  * @param dt step length in seconds
  */
-export function stepDrone(
-  state: DroneState,
-  controls: ControlFrame,
-  dt: number,
-  // TODO(step-06): choose limits and tuning from `controls.mode`.
-  limits: ModeLimits = NORMAL_LIMITS,
-  tuning: FlightTuning = NORMAL_TUNING,
-): void {
-  // TODO(step-24): proper signal-loss behaviour. For now a lost controller means centred sticks.
+export function stepDrone(state: DroneState, controls: ControlFrame, dt: number): void {
+  // TODO(step-24): proper signal-loss behaviour. For now a lost controller means centred
+  // sticks and no buttons.
   const live = controls.connected;
-  const rollStick = live ? stick(controls.roll) : 0;
-  const pitchStick = live ? stick(controls.pitch) : 0;
-  const yawStick = live ? stick(controls.yaw) : 0;
-  const throttleStick = live ? stick(controls.throttle) : 0;
+  const sticks: Sticks = {
+    roll: live ? stick(controls.roll) : 0,
+    pitch: live ? stick(controls.pitch) : 0,
+    yaw: live ? stick(controls.yaw) : 0,
+    throttle: live ? stick(controls.throttle) : 0,
+  };
 
-  // ---- Standing on the ground -------------------------------------------------------
-  // TODO(step-06): motors off, take-off and landing. For now: throttle up lifts off.
-  if (state.onGround) {
-    if (throttleStick <= 0) {
-      return;
+  updatePhase(state, sticks, live ? controls.buttons : NO_BUTTONS, dt);
+
+  const limits = MODE_LIMITS[controls.mode];
+  const tuning = MODE_TUNING[controls.mode];
+
+  switch (state.phase) {
+    case 'motorsOff':
+      if (!state.onGround) {
+        fall(state, dt);
+      }
+      break;
+
+    case 'idle':
+      // Standing on the ground with the motors running: nothing moves.
+      break;
+
+    case 'takingOff': {
+      // Straight up to hover height, slowing down as it gets there. The sticks are ignored,
+      // and it behaves the same whatever the flight mode is.
+      const remaining = FLIGHT_PROCEDURE.takeoffHeight - state.y;
+      const climb = clamp(
+        FLIGHT_PROCEDURE.takeoffGain * remaining,
+        -0.5,
+        FLIGHT_PROCEDURE.takeoffClimbSpeed,
+      );
+      const centred = { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
+      flyPowered(state, centred, climb, dt, MODE_LIMITS.N, MODE_TUNING.N);
+      break;
     }
-    state.onGround = false;
+
+    case 'flying':
+      flyPowered(state, sticks, null, dt, limits, tuning);
+      if (state.onGround) {
+        state.phase = 'idle'; // landed by hand: motors keep running
+      }
+      break;
+
+    case 'landing': {
+      // Steady descent that slows near the ground. The pilot can still steer and turn.
+      const height = clamp((state.y - GROUND_HEIGHT) / FLIGHT_PROCEDURE.landingSlowHeight, 0, 1);
+      const descent =
+        FLIGHT_PROCEDURE.landingTouchdownSpeed +
+        (FLIGHT_PROCEDURE.landingSpeed - FLIGHT_PROCEDURE.landingTouchdownSpeed) * height;
+      flyPowered(state, sticks, -descent, dt, limits, tuning);
+      if (state.onGround) {
+        state.phase = 'motorsOff'; // automatic landing ends with the motors stopped
+      }
+      break;
+    }
   }
+}
+
+/**
+ * Powered flight for one step.
+ * @param climbOverride climb rate in m/s chosen by the flight controller (take-off,
+ *   landing), or null to let the pilot's throttle stick decide
+ */
+function flyPowered(
+  state: DroneState,
+  sticks: Sticks,
+  climbOverride: number | null,
+  dt: number,
+  limits: ModeLimits,
+  tuning: FlightTuning,
+): void {
+  state.onGround = false;
 
   // ---- Height -----------------------------------------------------------------------
   let climbTarget: number;
-  if (throttleStick !== 0) {
+  if (climbOverride !== null) {
     state.altitudeHoldActive = false;
-    climbTarget = throttleStick * (throttleStick > 0 ? limits.maxAscent : limits.maxDescent);
+    climbTarget = climbOverride;
+  } else if (sticks.throttle !== 0) {
+    state.altitudeHoldActive = false;
+    climbTarget = sticks.throttle * (sticks.throttle > 0 ? limits.maxAscent : limits.maxDescent);
   } else {
     if (!state.altitudeHoldActive && Math.abs(state.vy) < tuning.altitudeLatchSpeed) {
       state.altitudeHoldActive = true;
@@ -86,7 +150,7 @@ export function stepDrone(
 
   // ---- Turning ----------------------------------------------------------------------
   const yawAcceleration = clamp(
-    tuning.yawGain * (yawStick * limits.maxYawRate - state.yawRate),
+    tuning.yawGain * (sticks.yaw * limits.maxYawRate - state.yawRate),
     -tuning.maxYawAcceleration,
     tuning.maxYawAcceleration,
   );
@@ -101,8 +165,8 @@ export function stepDrone(
   const rightZ = sin;
 
   // Both sticks fully over must not give more than full speed.
-  let forwardStick = pitchStick;
-  let rightStick = rollStick;
+  let forwardStick = sticks.pitch;
+  let rightStick = sticks.roll;
   const deflection = Math.hypot(forwardStick, rightStick);
   if (deflection > 1) {
     forwardStick /= deflection;
@@ -185,20 +249,46 @@ export function stepDrone(
   state.yawRate += yawAcceleration * dt;
   state.heading += state.yawRate * dt;
 
-  // ---- Ground -----------------------------------------------------------------------
-  // TODO(step-10): hard landings and crashes. For now touching the ground simply stops.
   if (state.y <= GROUND_HEIGHT && state.vy <= 0) {
-    state.y = GROUND_HEIGHT;
-    state.vx = 0;
-    state.vy = 0;
-    state.vz = 0;
-    state.pitch = 0;
-    state.roll = 0;
-    state.pitchRate = 0;
-    state.rollRate = 0;
-    state.yawRate = 0;
-    state.onGround = true;
-    state.holdActive = false;
-    state.altitudeHoldActive = false;
+    settleOnGround(state);
   }
+}
+
+/** Motors cut in the air: the aircraft falls, slowed only by air drag, until it hits the ground. */
+function fall(state: DroneState, dt: number): void {
+  const speed = Math.hypot(state.vx, state.vy, state.vz);
+  state.vx += -DRAG * speed * state.vx * dt;
+  state.vy += (-GRAVITY - DRAG * speed * state.vy) * dt;
+  state.vz += -DRAG * speed * state.vz * dt;
+
+  state.x += state.vx * dt;
+  state.y += state.vy * dt;
+  state.z += state.vz * dt;
+
+  state.yawRate = 0;
+  state.pitchRate = 0;
+  state.rollRate = 0;
+
+  if (state.y <= GROUND_HEIGHT) {
+    settleOnGround(state);
+  }
+}
+
+/**
+ * Puts the aircraft at rest on the ground.
+ * TODO(step-10): hard landings and crashes. For now touching the ground simply stops.
+ */
+function settleOnGround(state: DroneState): void {
+  state.y = GROUND_HEIGHT;
+  state.vx = 0;
+  state.vy = 0;
+  state.vz = 0;
+  state.pitch = 0;
+  state.roll = 0;
+  state.pitchRate = 0;
+  state.rollRate = 0;
+  state.yawRate = 0;
+  state.onGround = true;
+  state.holdActive = false;
+  state.altitudeHoldActive = false;
 }

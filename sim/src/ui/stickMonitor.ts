@@ -9,6 +9,7 @@ import {
 } from '../input/types';
 
 const BUTTON_LABELS: Record<ButtonId, string> = {
+  takeoffLand: 'Take-off',
   rth: 'RTH',
   pause: 'Pause',
   record: 'Rec',

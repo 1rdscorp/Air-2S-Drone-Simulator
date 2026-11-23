@@ -80,6 +80,29 @@ body {
   display: none;
 }
 
+#flight-status {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgb(13 17 23 / 78%);
+  color: #e6edf3;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+#flight-status:empty {
+  display: none;
+}
+
 #stick-monitor {
   --sm-pad: 92px;
   --sm-line: rgb(255 255 255 / 22%);

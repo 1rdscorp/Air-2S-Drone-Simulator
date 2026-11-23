@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { GameLoop, SIM_DT, SIM_HZ } from '../core/gameLoop';
-import { type ControlFrame, neutralFrame } from '../input/types';
-import { DRAG, GRAVITY, NORMAL_LIMITS } from './air2s.config';
-import { createDroneState, type DroneState, horizontalSpeed } from './droneState';
+import { type ControlFrame, type FlightMode, neutralFrame } from '../input/types';
+import { DRAG, GRAVITY, MODE_LIMITS } from './air2s.config';
+import {
+  createDroneState,
+  createFlyingState,
+  type DroneState,
+  horizontalSpeed,
+} from './droneState';
 import { stepDrone } from './flightModel';
 
 const DEG = Math.PI / 180;
 
-type Sticks = Partial<Pick<ControlFrame, 'roll' | 'pitch' | 'yaw' | 'throttle' | 'connected'>>;
+type Sticks = Partial<
+  Pick<ControlFrame, 'roll' | 'pitch' | 'yaw' | 'throttle' | 'connected' | 'mode'>
+>;
 
 function controls(sticks: Sticks = {}): ControlFrame {
   return { ...neutralFrame(0, 'N', true), ...sticks };
@@ -24,10 +31,7 @@ function fly(state: DroneState, seconds: number, sticks: Sticks = {}): DroneStat
 
 /** A drone hovering high up, so nothing in the test touches the ground. */
 function highUp(): DroneState {
-  const state = createDroneState();
-  state.y = 500;
-  state.holdY = 500;
-  return state;
+  return createFlyingState(500);
 }
 
 describe('Normal mode: published speeds', () => {
@@ -101,9 +105,9 @@ describe('Normal mode: published speeds', () => {
 
 describe('hover', () => {
   it('does not move at all when started at rest with the sticks centred', () => {
-    const state = fly(createDroneState(), 60);
+    const state = fly(createFlyingState(2), 60);
 
-    expect(state).toEqual(createDroneState());
+    expect(state).toEqual(createFlyingState(2));
   });
 
   it('does not drift after flying and letting go of the sticks', () => {
@@ -235,7 +239,7 @@ describe('tilt', () => {
     }
 
     expect(steepest / DEG).toBeGreaterThan(20);
-    expect(steepest).toBeLessThanOrEqual(NORMAL_LIMITS.maxTilt + 0.5 * DEG);
+    expect(steepest).toBeLessThanOrEqual(MODE_LIMITS.N.maxTilt + 0.5 * DEG);
   });
 
   it('takes a moment to tilt: it is not instant', () => {
@@ -298,7 +302,7 @@ describe('directions', () => {
 
 describe('ground', () => {
   it('stops on the ground instead of sinking through it', () => {
-    const state = fly(createDroneState(), 5, { throttle: -1, pitch: 1 });
+    const state = fly(createFlyingState(2), 2, { throttle: -1, pitch: 1 });
 
     expect(state.y).toBe(0);
     expect(state.onGround).toBe(true);
@@ -307,17 +311,17 @@ describe('ground', () => {
     expect(state.pitch).toBe(0);
   });
 
-  it('stays put on the ground whatever the other sticks do', () => {
-    const state = fly(createDroneState(), 5, { throttle: -1 });
-    const landed = { ...state };
+  it('stays put on the ground whatever the steering sticks do', () => {
+    const state = fly(createFlyingState(2), 2, { throttle: -1 });
 
     fly(state, 5, { pitch: 1, roll: -1, yaw: 1 });
 
-    expect(state).toEqual(landed);
+    expect(state).toMatchObject({ phase: 'idle', x: 0, y: 0, z: 0, heading: 0, onGround: true });
+    expect(horizontalSpeed(state)).toBe(0);
   });
 
-  it('lifts off again with throttle up', () => {
-    const state = fly(createDroneState(), 5, { throttle: -1 });
+  it('lifts off again with throttle up while the motors are still running', () => {
+    const state = fly(createFlyingState(2), 2, { throttle: -1 });
 
     fly(state, 2, { throttle: 1 });
 
@@ -332,22 +336,131 @@ describe('ground', () => {
       seed = (seed * 1664525 + 1013904223) % 4294967296;
       return (seed / 4294967296) * 2 - 1;
     };
+    const modes: FlightMode[] = ['C', 'N', 'S'];
     let lowest = Number.POSITIVE_INFINITY;
-    for (let second = 0; second < 600; second++) {
-      const sticks = { roll: random(), pitch: random(), yaw: random(), throttle: random() };
+    let secondsInTheAir = 0;
+    for (let second = 0; second < 900; second++) {
+      const frame = controls({
+        roll: random(),
+        pitch: random(),
+        yaw: random(),
+        throttle: random(),
+        mode: modes[second % 3] ?? 'N',
+      });
+      // Now and then press the take-off / landing button, so the flight keeps going.
+      frame.buttons.takeoffLand = second % 11 === 0;
       for (let i = 0; i < SIM_HZ; i++) {
-        stepDrone(state, controls(sticks), SIM_DT);
+        stepDrone(state, frame, SIM_DT);
         lowest = Math.min(lowest, state.y);
       }
+      secondsInTheAir += state.onGround ? 0 : 1;
     }
 
     expect(lowest).toBeGreaterThanOrEqual(0);
+    expect(secondsInTheAir).toBeGreaterThan(300);
     for (const value of Object.values(state)) {
       if (typeof value === 'number') {
         expect(Number.isFinite(value)).toBe(true);
       }
     }
-    expect(horizontalSpeed(state)).toBeLessThan(15.5);
+    expect(horizontalSpeed(state)).toBeLessThan(19.5);
+  });
+});
+
+describe('flight modes', () => {
+  const MODES: FlightMode[] = ['C', 'N', 'S'];
+
+  it('each mode reaches its own top speed: Cine 5, Normal 15, Sport 19 m/s', () => {
+    const expected = { C: 5, N: 15, S: 19 };
+    for (const mode of MODES) {
+      const state = fly(highUp(), 40, { pitch: 1, mode });
+
+      expect(horizontalSpeed(state), mode).toBeCloseTo(expected[mode], 2);
+    }
+  });
+
+  it('no mode goes noticeably above its top speed on the way there', () => {
+    for (const mode of MODES) {
+      const state = highUp();
+      let fastest = 0;
+      for (let i = 0; i < 40 * SIM_HZ; i++) {
+        stepDrone(state, controls({ pitch: 1, mode }), SIM_DT);
+        fastest = Math.max(fastest, horizontalSpeed(state));
+      }
+
+      expect(fastest, mode).toBeLessThan(MODE_LIMITS[mode].maxSpeed + 0.05);
+    }
+  });
+
+  it('each mode turns at its own rate: 60, 90 and 250 degrees per second', () => {
+    const expected = { C: 60, N: 90, S: 250 };
+    for (const mode of MODES) {
+      const state = fly(highUp(), 6, { yaw: 1, mode });
+
+      expect(state.yawRate / DEG, mode).toBeCloseTo(expected[mode], 2);
+    }
+  });
+
+  it('Normal and Sport climb and descend at 6 m/s, Cine more slowly', () => {
+    for (const mode of MODES) {
+      const up = fly(highUp(), 10, { throttle: 1, mode });
+      const down = fly(highUp(), 10, { throttle: -1, mode });
+
+      expect(up.vy, mode).toBeCloseTo(MODE_LIMITS[mode].maxAscent, 3);
+      expect(down.vy, mode).toBeCloseTo(-MODE_LIMITS[mode].maxDescent, 3);
+    }
+    expect(MODE_LIMITS.N.maxAscent).toBe(6);
+    expect(MODE_LIMITS.S.maxAscent).toBe(6);
+    expect(MODE_LIMITS.C.maxAscent).toBeLessThan(6);
+  });
+
+  it('never tilts further than the limit of the mode', () => {
+    for (const mode of MODES) {
+      const state = highUp();
+      let steepest = 0;
+      for (const sticks of [{ pitch: 1 }, { pitch: -1, roll: 1 }, {}, { roll: -1 }]) {
+        for (let i = 0; i < 5 * SIM_HZ; i++) {
+          stepDrone(state, controls({ ...sticks, mode }), SIM_DT);
+          const tilt = Math.atan(Math.hypot(Math.tan(state.pitch), Math.tan(state.roll)));
+          steepest = Math.max(steepest, tilt);
+        }
+      }
+
+      expect(steepest, mode).toBeLessThanOrEqual(MODE_LIMITS[mode].maxTilt + 0.5 * DEG);
+      expect(steepest, mode).toBeGreaterThan(MODE_LIMITS[mode].maxTilt * 0.8);
+    }
+  });
+
+  it('Sport gets going faster than Normal, and Cine more gently', () => {
+    const speedAfter = (mode: FlightMode): number =>
+      horizontalSpeed(fly(highUp(), 1.5, { pitch: 1, mode }));
+
+    expect(speedAfter('S')).toBeGreaterThan(speedAfter('N'));
+    expect(speedAfter('N')).toBeGreaterThan(speedAfter('C'));
+  });
+
+  it('takes effect at once when the mode is changed in flight', () => {
+    const state = fly(highUp(), 40, { pitch: 1, mode: 'S' });
+    expect(horizontalSpeed(state)).toBeCloseTo(19, 1);
+
+    fly(state, 40, { pitch: 1, mode: 'C' });
+    expect(horizontalSpeed(state)).toBeCloseTo(5, 2);
+
+    fly(state, 40, { pitch: 1, mode: 'N' });
+    expect(horizontalSpeed(state)).toBeCloseTo(15, 2);
+  });
+
+  it('holds the hover in every mode', () => {
+    for (const mode of MODES) {
+      const state = highUp();
+      fly(state, 10, { pitch: 1, roll: 0.5, throttle: 0.5, mode });
+      fly(state, 25, { mode });
+      const settled = { ...state };
+      fly(state, 60, { mode });
+
+      expect(Math.hypot(state.x - settled.x, state.z - settled.z), mode).toBeLessThan(0.001);
+      expect(Math.abs(state.y - settled.y), mode).toBeLessThan(0.001);
+    }
   });
 });
 

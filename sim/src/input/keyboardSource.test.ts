@@ -201,6 +201,42 @@ describe('KeyboardSource', () => {
     expect(hold(source, clock, 0.3).rightX).toBe(0);
   });
 
+  it('uses T as the take-off / landing button', () => {
+    const { source, clock } = setup();
+    source.keyDown('KeyT');
+
+    expect(source.poll(clock.ms).buttons).toEqual({ takeoffLand: true });
+  });
+
+  it('uses K for the stick command: both sticks down and towards each other', () => {
+    const { source, clock } = setup();
+    source.keyDown('KeyK');
+
+    expect(hold(source, clock, 0.5)).toMatchObject({
+      leftX: 1,
+      leftY: -1,
+      rightX: -1,
+      rightY: -1,
+    });
+
+    source.keyUp('KeyK');
+    expect(hold(source, clock, 0.5)).toMatchObject({ leftX: 0, leftY: 0, rightX: 0, rightY: 0 });
+  });
+
+  it('lets K take over the sticks even while other stick keys are held', () => {
+    const { source, clock } = setup();
+    source.keyDown('KeyW');
+    source.keyDown('ArrowUp');
+    source.keyDown('KeyK');
+
+    expect(hold(source, clock, 0.6)).toMatchObject({
+      leftX: 1,
+      leftY: -1,
+      rightX: -1,
+      rightY: -1,
+    });
+  });
+
   it('lets go of everything when asked, for example when the window loses focus', () => {
     const { source, clock } = setup();
     source.keyDown('KeyW');
@@ -223,8 +259,19 @@ describe('KeyboardSource', () => {
     expect(source.handles('ArrowLeft')).toBe(true);
     expect(source.handles('Space')).toBe(true);
     expect(source.handles('Digit2')).toBe(true);
+    expect(source.handles('KeyT')).toBe(true);
+    expect(source.handles('KeyK')).toBe(true);
     // Debug keys and anything else stay free.
-    for (const code of ['KeyP', 'KeyI', 'Backquote', 'Period', 'Minus', 'Equal', 'F5', 'Tab']) {
+    for (const code of [
+      'KeyP',
+      'KeyI',
+      'Backquote',
+      'Period',
+      'Minus',
+      'Equal',
+      'Backspace',
+      'F5',
+    ]) {
       expect(source.handles(code), code).toBe(false);
     }
   });

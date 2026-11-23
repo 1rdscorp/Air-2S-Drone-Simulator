@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDroneState } from '../drone/droneState';
+import { createDroneState, createFlyingState } from '../drone/droneState';
 import { type ControlFrame, neutralFrame } from '../input/types';
 import { GameLoop, SIM_DT, SIM_HZ } from './gameLoop';
 import { Simulation, type SimState } from './simulation';
@@ -13,13 +13,36 @@ function run(sim: Simulation, seconds: number, controls: ControlFrame): void {
   }
 }
 
+/** A simulation with the aircraft already hovering, 50 m up. */
+function airborne(): Simulation {
+  const sim = new Simulation();
+  sim.reset(50);
+  return sim;
+}
+
 describe('Simulation', () => {
-  it('starts with the aircraft hovering at rest', () => {
+  it('starts with the aircraft on the ground, motors off', () => {
     expect(new Simulation().snapshot()).toEqual(createDroneState());
   });
 
-  it('flies the aircraft with the controls it is given', () => {
+  it('does not move on the ground until the motors are started', () => {
     const sim = new Simulation();
+    run(sim, 5, { ...FORWARD, throttle: 1 });
+
+    expect(sim.snapshot()).toEqual(createDroneState());
+  });
+
+  it('takes off when the take-off button is pressed', () => {
+    const sim = new Simulation();
+    run(sim, 0.1, { ...HOVER, buttons: { ...HOVER.buttons, takeoffLand: true } });
+    run(sim, 8, HOVER);
+
+    expect(sim.snapshot().phase).toBe('flying');
+    expect(sim.snapshot().y).toBeGreaterThan(1);
+  });
+
+  it('flies the aircraft with the controls it is given', () => {
+    const sim = airborne();
     run(sim, 5, FORWARD);
 
     const state = sim.snapshot();
@@ -28,14 +51,14 @@ describe('Simulation', () => {
   });
 
   it('stays where it is with centred sticks', () => {
-    const sim = new Simulation();
+    const sim = airborne();
     run(sim, 10, HOVER);
 
-    expect(sim.snapshot()).toEqual(createDroneState());
+    expect(sim.snapshot()).toEqual(createFlyingState(50));
   });
 
   it('blends between the previous and the current step for drawing', () => {
-    const sim = new Simulation();
+    const sim = airborne();
     run(sim, 2, FORWARD);
     const before = sim.snapshot();
     sim.step(SIM_DT, FORWARD);
@@ -48,7 +71,7 @@ describe('Simulation', () => {
   });
 
   it('does not change when it is drawn', () => {
-    const sim = new Simulation();
+    const sim = airborne();
     run(sim, 1, FORWARD);
     const before = sim.snapshot();
 
@@ -60,22 +83,30 @@ describe('Simulation', () => {
   });
 
   it('hands out snapshots that are independent copies', () => {
-    const sim = new Simulation();
+    const sim = airborne();
     const first = sim.snapshot();
     run(sim, 1, FORWARD);
 
-    expect(first).toEqual(createDroneState());
+    expect(first).toEqual(createFlyingState(50));
     expect(sim.snapshot()).not.toEqual(first);
   });
 
-  it('can be put back to the start', () => {
-    const sim = new Simulation();
+  it('can be put back to the start: on the ground, motors off', () => {
+    const sim = airborne();
     run(sim, 5, { ...FORWARD, yaw: 1, throttle: 1 });
 
     sim.reset();
 
     expect(sim.snapshot()).toEqual(createDroneState());
-    expect(sim.interpolate(0)).toMatchObject({ x: 0, z: 0, heading: 0 });
+    expect(sim.interpolate(0)).toMatchObject({ x: 0, y: 0, z: 0, heading: 0 });
+  });
+
+  it('can be put straight into a hover at a chosen height', () => {
+    const sim = new Simulation();
+    sim.reset(120);
+
+    expect(sim.snapshot()).toEqual(createFlyingState(120));
+    expect(sim.interpolate(0.5).y).toBe(120);
   });
 
   it('reaches exactly the same state at any render rate', () => {
@@ -89,7 +120,7 @@ describe('Simulation', () => {
     });
 
     const stateAt = (displayHz: number): SimState => {
-      const sim = new Simulation();
+      const sim = airborne();
       const captured: { state: SimState | null } = { state: null };
       const loop = new GameLoop({
         step(dt, tick) {

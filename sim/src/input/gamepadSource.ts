@@ -26,12 +26,14 @@ const BUTTON = {
   rightBumper: 5,
   leftTrigger: 6,
   rightTrigger: 7,
+  start: 9,
   dpadUp: 12,
   dpadLeft: 14,
   dpadRight: 15,
 } as const;
 
 const BUTTON_MAP: Record<ButtonId, number> = {
+  takeoffLand: BUTTON.start,
   shutter: BUTTON.a,
   pause: BUTTON.b,
   record: BUTTON.x,
@@ -54,6 +56,7 @@ const MODE_MAP: [number, FlightMode][] = [
  *   Triggers             gimbal: right tilts up, left tilts down
  *   D-pad left/up/right  Cine / Normal / Sport
  *   A, B, X, Y           shutter, flight pause, record, return to home
+ *   Start                take off / land
  *   Bumpers              C1, C2
  */
 export class GamepadSource implements ControlSource {

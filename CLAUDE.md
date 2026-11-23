@@ -55,10 +55,14 @@ Notes for headless and cloud sessions:
 - Keys: `` ` `` or F2 overlay, I stick monitor, P pause, `.` one step while paused, `-`
   and `=` speed, Backspace puts the aircraft back at the start.
 - `window.__sim` (see `sim/src/core/testHook.ts`): `tick`, `time`, `paused`, `timeScale`,
-  `pause()`, `resume()`, `step(n)`, `reset()`, `setControls({...} | null)`, `getState()`,
-  `getStats()`, `getInput()`, `params`.
-- For an exact flight test: open with `?paused=1`, call `__sim.setControls({ pitch: 1 })`,
-  then `__sim.step(n)` and read `__sim.getState()`. See `sim/e2e/flight.spec.ts`.
+  `pause()`, `resume()`, `step(n)`, `reset({ height? })`, `setControls({...} | null)`,
+  `getState()`, `getStats()`, `getInput()`, `params`.
+- The aircraft starts on the ground with the motors off. For an exact flight test: open
+  with `?paused=1`, call `__sim.reset({ height: 20 })` to start in a hover, then
+  `__sim.setControls({ pitch: 1, mode: 'S', buttons: { takeoffLand: true } })`,
+  `__sim.step(n)` and read `__sim.getState()`. See `sim/e2e/flight.spec.ts`.
+- `__sim.step(n)` redraws once per call, and a redraw is slow in the software renderer.
+  Step many ticks in one call; never call `step(1)` in a long loop.
 - Flight keys and gamepad buttons are defined in `sim/src/input/keyboardSource.ts` and
   `gamepadSource.ts`. Keep the Controls tables in `README.md` in step with them, and keep
   new flight keys clear of the debug keys above.
@@ -93,8 +97,12 @@ Notes for headless and cloud sessions:
 - Every environment implements the `Environment` interface and frees everything in
   `dispose()`.
 - All Air 2S numbers live in `sim/src/drone/air2s.config.ts`: published values with their
-  source in `AIR_2S_SPECS`, tuned values (not published) separately. Flight feel is
-  changed there, never in `flightModel.ts`.
+  source in `AIR_2S_SPECS`; chosen and tuned values (not published) separately in
+  `CINE_CHOSEN`, `MODE_TUNING` and `FLIGHT_PROCEDURE`. Flight feel is changed there, never
+  in `flightModel.ts`.
+- What the aircraft is doing is its flight phase (motors off, idle, taking off, flying,
+  landing). `sim/src/drone/flightPhase.ts` decides the phase from sticks and buttons;
+  `flightModel.ts` moves the aircraft for that phase.
 - The aircraft state is `DroneState` in `sim/src/drone/droneState.ts`. `y` is the height of
   its underside, so 0 means standing on the ground. Heading 0 is north and grows turning
   right; it is not wrapped at 360°. Positive pitch is nose down, positive roll is right

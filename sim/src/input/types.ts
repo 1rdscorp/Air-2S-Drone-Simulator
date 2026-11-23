@@ -8,8 +8,11 @@ export const FLIGHT_MODE_NAMES: Record<FlightMode, string> = {
   S: 'Sport',
 };
 
-/** Buttons a controller can report. "pause" is the flight pause (brake and hover). */
-export const BUTTON_IDS = ['rth', 'pause', 'record', 'shutter', 'c1', 'c2'] as const;
+/**
+ * Buttons a controller can report. "takeoffLand" takes off from the ground and lands from
+ * the air. "pause" is the flight pause (brake and hover).
+ */
+export const BUTTON_IDS = ['takeoffLand', 'rth', 'pause', 'record', 'shutter', 'c1', 'c2'] as const;
 export type ButtonId = (typeof BUTTON_IDS)[number];
 
 /**
@@ -82,7 +85,15 @@ export interface ControlSource {
 }
 
 export function noButtonsPressed(): Record<ButtonId, boolean> {
-  return { rth: false, pause: false, record: false, shutter: false, c1: false, c2: false };
+  return {
+    takeoffLand: false,
+    rth: false,
+    pause: false,
+    record: false,
+    shutter: false,
+    c1: false,
+    c2: false,
+  };
 }
 
 /** A frame with everything centred and released. */

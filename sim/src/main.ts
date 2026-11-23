@@ -12,9 +12,10 @@ import { applyPose, createDroneStandIn } from './drone/standInMesh';
 import { GamepadSource } from './input/gamepadSource';
 import { InputManager } from './input/inputManager';
 import { KeyboardSource } from './input/keyboardSource';
-import { type ControlFrame, neutralFrame } from './input/types';
+import { type ControlFrame, neutralFrame, noButtonsPressed } from './input/types';
 import { bindDebugKeys, nextTimeScale } from './ui/debugControls';
 import { type DebugInfo, DebugOverlay, formatTimeScale } from './ui/debugOverlay';
+import { flightStatusText, takeoffButtonName } from './ui/flightStatus';
 import { StickMonitor } from './ui/stickMonitor';
 
 const MAX_PIXEL_RATIO = 2;
@@ -31,6 +32,7 @@ function start(): void {
   const canvas = requireElement<HTMLCanvasElement>('#view');
   const message = requireElement('#message');
   const statusBadge = requireElement('#status-badge');
+  const flightStatus = requireElement('#flight-status');
   requireElement('#build-label').textContent = `Air 2S Drone Simulator · v${__APP_VERSION__}`;
 
   const { params, warnings } = parseParams(window.location.search);
@@ -122,6 +124,7 @@ function start(): void {
       paused: loop.paused,
       inputSource: scripted ? 'Test script' : input.activeSource.label,
       drone: {
+        phase: state.phase,
         height: state.y,
         speed: horizontalSpeed(state),
         climbRate: state.vy,
@@ -151,10 +154,26 @@ function start(): void {
     loop.frame(0);
   };
 
-  const resetFlight = (): void => {
-    sim.reset();
+  const resetFlight = (height?: number): void => {
+    sim.reset(height);
     drawNow();
     overlay.refreshSoon();
+  };
+
+  /** Tells the pilot what the aircraft is doing and which button comes next. */
+  let shownFlightStatus = '';
+  const refreshFlightStatus = (): void => {
+    const state = sim.snapshot();
+    const text = flightStatusText(
+      state.phase,
+      state.onGround,
+      currentControls().mode,
+      takeoffButtonName(input.activeSource.id),
+    );
+    if (text !== shownFlightStatus) {
+      shownFlightStatus = text;
+      flightStatus.textContent = text;
+    }
   };
 
   bindDebugKeys(window, {
@@ -176,7 +195,9 @@ function start(): void {
       loop.timeScale = nextTimeScale(loop.timeScale, direction);
       refreshStatus();
     },
-    resetFlight,
+    resetFlight: () => {
+      resetFlight();
+    },
     isPaused: () => loop.paused,
   });
 
@@ -212,9 +233,17 @@ function start(): void {
       drawNow();
       refreshStatus();
     },
-    reset: resetFlight,
+    reset: (options) => {
+      resetFlight(options?.height);
+    },
     setControls: (controls: ScriptedControls | null) => {
-      scripted = controls ? { ...neutralFrame(0, 'N', true), ...controls } : null;
+      scripted = controls
+        ? {
+            ...neutralFrame(0, 'N', true),
+            ...controls,
+            buttons: { ...noButtonsPressed(), ...controls.buttons },
+          }
+        : null;
     },
     getState: () => {
       const state = sim.snapshot();
@@ -252,6 +281,7 @@ function start(): void {
     input.update(timeMs);
     loop.frame(elapsed);
     stickMonitor.update(input);
+    refreshFlightStatus();
     overlay.update(elapsed, debugInfo);
 
     // Lets tests wait until something has really been drawn.
