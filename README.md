@@ -6,7 +6,14 @@ Bluetooth. Environments: mountains, city, ocean and beach, with day / night and 
 The project is built in small numbered steps. So far it shows a first lit 3D scene; the
 drone, the environments and the controller link come in later steps.
 
-## Run it
+## Try it online
+
+https://1rdscorp.github.io/Air-2S-Drone-Simulator/
+
+The site is rebuilt automatically from the `main` branch, so it shows the steps that
+have been merged.
+
+## Run it on your computer
 
 You need [Node.js](https://nodejs.org) 22 or newer.
 

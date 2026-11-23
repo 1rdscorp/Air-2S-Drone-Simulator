@@ -19,6 +19,8 @@ in its decision log (section 9).
 - `rc-bridge/` — Android app for the Smart Controller (Kotlin, DJI Mobile SDK v4). Created in Step 22.
 - `docs/` — plan, prompts, protocol, setup guides.
 - `.github/workflows/` — `ci.yml` (every push) and `deploy.yml` (GitHub Pages, from `main`).
+  The published site is https://1rdscorp.github.io/Air-2S-Drone-Simulator/ and shows what
+  is merged into `main`.
 
 ## Commands
 

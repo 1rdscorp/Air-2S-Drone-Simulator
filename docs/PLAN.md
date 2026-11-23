@@ -430,6 +430,7 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 02 — Besides `env`, `time`, `seed` and `quality`, the address also takes `debug`, `paused` and `speed` — they make screenshots and tests repeatable. The first four are read and checked now but only used from their own steps (10, 17, 11, 20).
 - 2026-11-23 — step 02 — `window.__sim` is also present in the production build — the browser tests run against that build.
 - 2026-11-23 — step 02 — Until Step 05 the simulated world is only the turning reference cube — it gives the loop something real to step and interpolate.
+- 2026-11-23 — publish — GitHub Pages is switched on and the deploy from `main` works; the site is https://1rdscorp.github.io/Air-2S-Drone-Simulator/ — a step appears there once it is merged into `main`.
 
 ---
 
