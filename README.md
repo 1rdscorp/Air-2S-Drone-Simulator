@@ -4,8 +4,9 @@ A 3D drone flight simulator for the browser, flown with a real DJI Smart Control
 Bluetooth. Environments: mountains, city, ocean and beach, with day / night and weather.
 
 The project is built in small numbered steps. So far the aircraft can be flown over a
-flat test field with the keyboard or a gamepad, with three camera views, a flight display
-and sound; the environments and the controller link come in later steps.
+test field with a landing pad and obstacles, with the keyboard, a gamepad or a flight
+stick, with three camera views, a flight display and sound. The other places to fly and
+the controller link come in later steps.
 
 ## Try it online
 
@@ -37,6 +38,20 @@ Then open http://localhost:5173 in Chrome.
 The aircraft starts on the ground with the motors off. Press **T** to take off: it climbs
 to 1.2 m and hovers. Fly with the keys below and press **T** again to land. The line at
 the bottom of the screen always says what the aircraft is doing and which key comes next.
+
+The place you fly in is named in the top-right corner. Press **E** (or click the name) for
+the list of places; choose one with the arrow keys and Enter, with its number, or with a
+click. For now only the **Test Field** is built: flat ground with a grid of 5 m squares, a
+landing pad at the start, and things to fly round, between and onto — a cube, a wall, a
+30 m tower, a gate, a raised platform and three steps with landing marks, and a row of
+poles. Mountains, ocean, beach and city are in the list and are marked "Not built yet".
+
+Obstacles are solid. Flying into one, or coming down too hard, is a **crash**: the aircraft
+falls, lies there for three seconds, and is then put back at the start with the motors
+off. An ordinary landing is never a crash, because the last metres of a descent are slowed
+down however far the stick is pushed; and a light bump or a slow slide along the ground
+only stops the aircraft. You can land on anything flat, and the height shown is always the
+height above the spot where the motors were started.
 
 There are three camera views; press **V** to change. The chase camera follows from behind,
 the drone camera shows what the aircraft's own camera sees, and the free camera can be
@@ -76,13 +91,14 @@ The keyboard acts as two sticks. In stick mode 2, the usual default:
 | V | Next camera view: chase, drone camera, free |
 | M | Sound off / on |
 | J | Set up a flight stick |
+| E | The list of places to fly |
 | W / S | Left stick up / down: climb / descend |
 | A / D | Left stick left / right: turn left / right |
 | Arrow up / down | Right stick up / down: fly forward / backward |
 | Arrow left / right | Right stick left / right: fly left / right |
 | 1 / 2 / 3 | Cine (5 m/s) / Normal (15 m/s) / Sport (19 m/s) mode |
 | Space | Flight pause: stops an automatic take-off or landing |
-| K | The stick command (both sticks down and inward). On the ground: starts or stops the motors. Held for 2 seconds in the air: cuts the motors, and the aircraft falls |
+| K | The stick command (both sticks down and inward). On the ground: starts or stops the motors. Held for 2 seconds in the air: cuts the motors, and the aircraft falls and crashes |
 | R / F | Tilt the camera up / down, between level and straight down |
 | Z | Camera back to level |
 | X | Camera straight down |
@@ -92,7 +108,8 @@ There are two ways to take off and to land, as on the real aircraft:
 
 - **Automatic:** T takes off and T lands. The motors stop by themselves after touchdown.
 - **By hand:** K starts the motors, then W lifts off. To land, descend with S until it
-  stands on the ground and keep S held for 3 seconds; the motors then stop.
+  stands on the ground and keep S held for 3 seconds; the motors then stop. Below 7 m the
+  descent slows down by itself, to half a metre per second at touchdown.
 
 A standard game controller (Xbox, PlayStation and similar) works too. Press any button on
 it once so the browser can see it.
@@ -140,7 +157,8 @@ then says "Flight stick found".
 | Backspace | Put the aircraft back at the start |
 
 The same settings can be put in the address, for example
-`http://localhost:5173/?debug=1&paused=1&speed=0.5`.
+`http://localhost:5173/?debug=1&paused=1&speed=0.5`. The place to start in can be given
+there too: `?env=test` (later also `mountains`, `ocean`, `beach`, `city`).
 
 ## Controller check
 

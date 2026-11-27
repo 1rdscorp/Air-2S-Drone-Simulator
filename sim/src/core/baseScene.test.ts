@@ -1,52 +1,17 @@
-import { DirectionalLight, HemisphereLight, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import { Color, DirectionalLight, type Fog, HemisphereLight, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import {
-  aimSunAt,
-  createBaseScene,
-  createGridTexture,
-  GRID_CELL_M,
-  GRID_TEXTURE_PX,
-  GROUND_SIZE_M,
-  SUN_OFFSET,
-} from './baseScene';
-
-/** Reads one pixel of a grid texture as [r, g, b, a]. */
-function pixelAt(data: Uint8Array, x: number, y: number): number[] {
-  const start = (y * GRID_TEXTURE_PX + x) * 4;
-  return Array.from(data.subarray(start, start + 4));
-}
+import type { LightingProfile } from '../world/environment';
+import { aimSunAt, applyLighting, createBaseScene, SUN_OFFSET } from './baseScene';
 
 describe('createBaseScene', () => {
-  it('contains a sun, a sky light and a ground', () => {
-    const { scene, sun } = createBaseScene();
+  it('contains a sun and a sky light, and nothing of any place yet', () => {
+    const { scene, sun, skyLight } = createBaseScene();
 
     expect(scene.getObjectByName('sun')).toBe(sun);
     expect(sun).toBeInstanceOf(DirectionalLight);
-    expect(scene.getObjectByName('sky-light')).toBeInstanceOf(HemisphereLight);
-    expect(scene.getObjectByName('ground')).toBeInstanceOf(Mesh);
-  });
-
-  it('lays the ground flat, facing up, at height 0', () => {
-    const { scene } = createBaseScene();
-    const ground = scene.getObjectByName('ground');
-
-    expect(ground?.rotation.x).toBeCloseTo(-Math.PI / 2);
-    expect(ground?.position.y).toBe(0);
-  });
-
-  it('has room for a few minutes of flying at full speed', () => {
-    // 19 m/s for two minutes from the middle is about 2.3 km.
-    expect(GROUND_SIZE_M / 2).toBeGreaterThanOrEqual(2000);
-  });
-
-  it('draws the grid on the ground, one texture repeat per cell', () => {
-    const { scene } = createBaseScene();
-    const ground = scene.getObjectByName('ground') as Mesh;
-    const material = ground.material as MeshStandardMaterial;
-
-    expect(material.map?.name).toBe('grid-texture');
-    expect(material.map?.repeat.x).toBe(GROUND_SIZE_M / GRID_CELL_M);
-    expect(material.map?.repeat.y).toBe(GROUND_SIZE_M / GRID_CELL_M);
+    expect(scene.getObjectByName('sky-light')).toBe(skyLight);
+    expect(skyLight).toBeInstanceOf(HemisphereLight);
+    expect(scene.getObjectByName('ground')).toBeUndefined();
   });
 
   it('sets up the shadow area so that it really reaches from the light to the ground', () => {
@@ -58,14 +23,60 @@ describe('createBaseScene', () => {
     expected.updateProjectionMatrix();
     expect(sun.shadow.camera.projectionMatrix.equals(expected.projectionMatrix)).toBe(true);
     expect(sun.shadow.camera.far).toBeGreaterThan(lightToGround);
+    expect(sun.shadow.camera.near).toBeLessThan(lightToGround);
   });
 
-  it('lets the sun cast shadows onto the ground', () => {
+  it('lets the sun cast shadows', () => {
     const { scene, sun } = createBaseScene();
 
     expect(sun.castShadow).toBe(true);
-    expect(scene.getObjectByName('ground')?.receiveShadow).toBe(true);
     expect(sun.target.parent).toBe(scene);
+  });
+});
+
+describe('applyLighting', () => {
+  const dusk: LightingProfile = {
+    sky: [255, 128, 0],
+    hazeStart: 50,
+    hazeEnd: 900,
+    sunColor: 0xff8844,
+    sunStrength: 1.5,
+    skyLightColor: 0x112233,
+    groundLightColor: 0x332211,
+    skyLightStrength: 0.4,
+  };
+
+  it('gives the stage the sky colour and haze of a place', () => {
+    const base = createBaseScene();
+    applyLighting(base, dusk);
+
+    const background = base.scene.background as Color;
+    const fog = base.scene.fog as Fog;
+    expect(background.getHexString()).toBe('ff8000');
+    expect(fog.color.getHexString()).toBe('ff8000');
+    expect(fog.near).toBe(50);
+    expect(fog.far).toBe(900);
+  });
+
+  it('sets the sun and the sky light', () => {
+    const base = createBaseScene();
+    applyLighting(base, dusk);
+
+    expect(base.sun.color.getHex()).toBe(0xff8844);
+    expect(base.sun.intensity).toBe(1.5);
+    expect(base.skyLight.color.getHex()).toBe(0x112233);
+    expect(base.skyLight.groundColor.getHex()).toBe(0x332211);
+    expect(base.skyLight.intensity).toBe(0.4);
+  });
+
+  it('keeps the same sky and haze objects, so nothing has to be rebuilt', () => {
+    const base = createBaseScene();
+    const background = base.scene.background;
+    const fog = base.scene.fog;
+    applyLighting(base, dusk);
+
+    expect(base.scene.background).toBe(background);
+    expect(base.scene.fog).toBe(fog);
   });
 });
 
@@ -78,7 +89,9 @@ describe('aimSunAt', () => {
     const atStart = direction(sun);
 
     aimSunAt(sun, 800, 120, -300);
+    expect(direction(sun).distanceTo(atStart)).toBeLessThan(1e-9);
 
+    aimSunAt(sun, -40, 900, 70, 650);
     expect(direction(sun).distanceTo(atStart)).toBeLessThan(1e-9);
   });
 
@@ -100,6 +113,20 @@ describe('aimSunAt', () => {
     expect(sun.target.position.y).toBe(0);
   });
 
+  it('puts the shadow spot on the surface below the aircraft, wherever that is', () => {
+    const { sun } = createBaseScene();
+    // Standing on a roof 30 m up.
+    aimSunAt(sun, 10, 30, 10, 30);
+    expect(sun.target.position.toArray()).toEqual([10, 30, 10]);
+
+    // 100 m above ground that lies at 400 m.
+    const aircraft = new Vector3(0, 500, 0);
+    aimSunAt(sun, aircraft.x, aircraft.y, aircraft.z, 400);
+    expect(sun.target.position.y).toBe(400);
+    const toAircraft = aircraft.clone().sub(sun.position).normalize();
+    expect(toAircraft.distanceTo(direction(sun))).toBeLessThan(1e-9);
+  });
+
   it('keeps the aircraft between the light and the ground up to 500 m', () => {
     const { sun } = createBaseScene();
     aimSunAt(sun, 0, 499, 0);
@@ -108,32 +135,5 @@ describe('aimSunAt', () => {
     const distance = sun.position.distanceTo(new Vector3(0, 499, 0));
     expect(distance).toBeGreaterThan(sun.shadow.camera.near);
     expect(sun.position.distanceTo(sun.target.position)).toBeLessThan(sun.shadow.camera.far);
-  });
-});
-
-describe('createGridTexture', () => {
-  it('uses a whole number of grid cells', () => {
-    expect(Number.isInteger(GROUND_SIZE_M / GRID_CELL_M)).toBe(true);
-  });
-
-  it('has a darker line on every border and plain ground in the middle', () => {
-    const data = createGridTexture().image.data as Uint8Array;
-    const last = GRID_TEXTURE_PX - 1;
-    const middle = GRID_TEXTURE_PX / 2;
-
-    const groundPixel = pixelAt(data, middle, middle);
-    const borderPixels = [
-      pixelAt(data, 0, middle),
-      pixelAt(data, last, middle),
-      pixelAt(data, middle, 0),
-      pixelAt(data, middle, last),
-    ];
-
-    const brightness = (pixel: number[]): number =>
-      (pixel[0] ?? 0) + (pixel[1] ?? 0) + (pixel[2] ?? 0);
-    for (const border of borderPixels) {
-      expect(brightness(border)).toBeLessThan(brightness(groundPixel));
-      expect(border[3]).toBe(255);
-    }
   });
 });

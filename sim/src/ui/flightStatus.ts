@@ -8,6 +8,7 @@ export const PHASE_LABELS: Record<FlightPhase, string> = {
   takingOff: 'taking off',
   flying: 'flying',
   landing: 'landing',
+  crashed: 'crashed',
 };
 
 /**
@@ -46,5 +47,7 @@ export function flightStatusText(
       return `Flying · ${FLIGHT_MODE_NAMES[mode]} mode · press ${button} to land`;
     case 'landing':
       return `Landing… · press ${button} to cancel`;
+    case 'crashed':
+      return 'Crashed · back at the start in a moment';
   }
 }

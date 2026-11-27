@@ -221,6 +221,10 @@ test.describe('flight stick, before it is set up', () => {
 });
 
 test.describe('flight stick setup', () => {
+  // The setup runs in real time: every answer is held for a moment and then let go, and a
+  // headless browser draws only a few pictures a second. A dozen questions take a while.
+  test.describe.configure({ timeout: 90_000 });
+
   test('asks for each control, saves the answers, and the stick then flies', async ({ page }) => {
     await installFlightDevices(page);
     await open(page, '?expo=0');
@@ -376,6 +380,10 @@ test.describe('flight stick setup', () => {
 });
 
 test.describe('stick and throttle together', () => {
+  // The setup runs in real time: every answer is held for a moment and then let go, and a
+  // headless browser draws only a few pictures a second. A dozen questions take a while.
+  test.describe.configure({ timeout: 90_000 });
+
   test('a throttle lever is recognised and gets a middle that holds the height', async ({
     page,
   }) => {

@@ -8,9 +8,23 @@
  *   takingOff  Automatic take-off: climbing to hover height.
  *   flying     Normal flight under the pilot's sticks.
  *   landing    Automatic landing: descending until touchdown, then the motors stop.
+ *   crashed    It hit something. The motors are off, it falls to the ground and lies
+ *              there for a moment, then it is put back at the start.
  */
-export const FLIGHT_PHASES = ['motorsOff', 'idle', 'takingOff', 'flying', 'landing'] as const;
+export const FLIGHT_PHASES = [
+  'motorsOff',
+  'idle',
+  'takingOff',
+  'flying',
+  'landing',
+  'crashed',
+] as const;
 export type FlightPhase = (typeof FLIGHT_PHASES)[number];
+
+/** True in the phases in which the motors turn. */
+export function motorsRunning(phase: FlightPhase): boolean {
+  return phase === 'idle' || phase === 'takingOff' || phase === 'flying' || phase === 'landing';
+}
 
 /**
  * Everything the simulation knows about the aircraft at one moment. Plain numbers and
@@ -20,10 +34,15 @@ export type FlightPhase = (typeof FLIGHT_PHASES)[number];
  */
 export interface DroneState {
   phase: FlightPhase;
-  /** Position. `y` is the height of the aircraft's underside, so 0 means standing on the ground. */
+  /**
+   * Position. `y` is the height of the aircraft's underside in the world, so the aircraft
+   * stands on the ground when `y` equals `groundY`.
+   */
   x: number;
   y: number;
   z: number;
+  /** Height of the surface straight below the aircraft: the ground, or the top of what stands there. */
+  groundY: number;
   /** Velocity. */
   vx: number;
   vy: number;
@@ -76,8 +95,12 @@ export interface DroneState {
   homeSet: boolean;
   homeX: number;
   homeZ: number;
+  /** Height of the home point. The height shown to the pilot is measured from it. */
+  homeY: number;
   /** Flight time: seconds the motors have been running since they were last started. */
   flightSeconds: number;
+  /** Seconds a crashed aircraft has been lying on the ground. */
+  crashSeconds: number;
 }
 
 /** The part of the state that is needed to draw the aircraft. */
@@ -92,17 +115,28 @@ export interface DronePose {
   gimbalTilt: number;
 }
 
-/** The aircraft at the start: standing on the ground at the origin, motors off, facing north. */
-export function createDroneState(): DroneState {
+/** Where a state starts: on the ground at the origin facing north, unless said otherwise. */
+export interface StartPlace {
+  x?: number;
+  z?: number;
+  /** Height of the ground there. */
+  ground?: number;
+  heading?: number;
+}
+
+/** The aircraft at the start: standing on the ground, motors off. */
+export function createDroneState(place: StartPlace = {}): DroneState {
+  const ground = place.ground ?? 0;
   return {
     phase: 'motorsOff',
-    x: 0,
-    y: 0,
-    z: 0,
+    x: place.x ?? 0,
+    y: ground,
+    z: place.z ?? 0,
+    groundY: ground,
     vx: 0,
     vy: 0,
     vz: 0,
-    heading: 0,
+    heading: place.heading ?? 0,
     pitch: 0,
     roll: 0,
     yawRate: 0,
@@ -126,27 +160,39 @@ export function createDroneState(): DroneState {
     c1ButtonWasDown: false,
     c2ButtonWasDown: false,
     homeSet: false,
-    homeX: 0,
-    homeZ: 0,
+    homeX: place.x ?? 0,
+    homeZ: place.z ?? 0,
+    homeY: ground,
     flightSeconds: 0,
+    crashSeconds: 0,
   };
 }
 
 /**
- * The aircraft already in the air: hovering at rest at `height` metres above the origin.
- * Its home point is the origin, straight below it, and its flight clock starts at zero.
+ * The aircraft already in the air: hovering at rest `height` metres above the start.
+ * Its home point is straight below it, and its flight clock starts at zero.
  */
-export function createFlyingState(height: number): DroneState {
+export function createFlyingState(height: number, place: StartPlace = {}): DroneState {
+  const start = createDroneState(place);
   return {
-    ...createDroneState(),
+    ...start,
     phase: 'flying',
-    y: height,
+    y: start.groundY + height,
     onGround: false,
     holdActive: true,
+    holdX: start.x,
+    holdZ: start.z,
     altitudeHoldActive: true,
-    holdY: height,
+    holdY: start.groundY + height,
     homeSet: true,
   };
+}
+
+/** Height above the home point, which is what the pilot is shown; above the ground before there is one. */
+export function heightAboveHome(
+  state: Pick<DroneState, 'y' | 'homeSet' | 'homeY' | 'groundY'>,
+): number {
+  return state.y - (state.homeSet ? state.homeY : state.groundY);
 }
 
 export function copyDroneState(target: DroneState, source: DroneState): void {

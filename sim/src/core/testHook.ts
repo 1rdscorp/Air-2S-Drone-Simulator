@@ -3,6 +3,8 @@ import type { CameraMode } from '../camera/cameraRig';
 import type { JoystickMapping } from '../input/joystickMapping';
 import type { JoystickStatus } from '../input/joystickSource';
 import type { ButtonId, ControlFrame, StickMode, StickPositions } from '../input/types';
+import type { EnvId } from '../world/environment';
+import type { WorldStatus } from '../world/worldManager';
 import type { SimParams } from './params';
 import type { SimState } from './simulation';
 
@@ -53,6 +55,18 @@ export interface JoystickSnapshot {
   devices: string[];
   /** True while the setup screen is open. */
   setupOpen: boolean;
+}
+
+/** The place being flown in, and what it costs the graphics card. */
+export interface WorldSnapshot {
+  /** The place, or null while none is loaded. */
+  id: EnvId | null;
+  name: string | null;
+  status: WorldStatus;
+  /** True while the list of places is open. */
+  menuOpen: boolean;
+  /** What the renderer holds on the graphics card right now. */
+  memory: { geometries: number; textures: number };
 }
 
 /** Where the view is right now. */
@@ -110,6 +124,10 @@ export interface SimHook {
   getAudio(): AudioSnapshot;
   /** The flight stick and its setup. */
   getJoystick(): JoystickSnapshot;
+  /** The place being flown in. */
+  getWorld(): WorldSnapshot;
+  /** Loads another place and resolves once it is ready and drawn, with whether it worked. */
+  setEnvironment(id: EnvId): Promise<boolean>;
 }
 
 declare global {

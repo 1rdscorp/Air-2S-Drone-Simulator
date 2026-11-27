@@ -92,7 +92,8 @@ test.describe('take-off and landing (simulated time)', () => {
   test('landing by hand leaves the motors on until the throttle is held down', async ({ page }) => {
     await openHovering(page, 2);
 
-    expect((await fly(page, 1.5, { throttle: -1 }))?.phase).toBe('idle');
+    // The last metres are slow, however far down the stick is: about two seconds from 2 m.
+    expect((await fly(page, 2.5, { throttle: -1 }))?.phase).toBe('idle');
     expect((await fly(page, 4, { throttle: -1 }))?.phase).toBe('motorsOff');
   });
 
@@ -106,8 +107,16 @@ test.describe('take-off and landing (simulated time)', () => {
     expect(cut).toMatchObject({ phase: 'motorsOff', onGround: false });
     await expect(page.locator('#flight-status')).toHaveText('Motors stopped · falling');
 
-    const fallen = await fly(page, 30, {});
-    expect(fallen).toMatchObject({ phase: 'motorsOff', y: 0, onGround: true });
+    // A fall from that height is a crash. The wreck lies there for a moment, and then the
+    // aircraft is put back at the start.
+    const wreck = await fly(page, 7, {});
+    expect(wreck).toMatchObject({ phase: 'crashed', y: 0, onGround: true });
+    await expect(page.locator('#flight-status')).toHaveText(
+      'Crashed · back at the start in a moment',
+    );
+
+    const back = await fly(page, 4, {});
+    expect(back).toMatchObject({ phase: 'motorsOff', x: 0, y: 0, z: 0, onGround: true });
   });
 });
 

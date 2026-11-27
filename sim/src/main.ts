@@ -9,14 +9,14 @@ import {
   CameraRig,
   VIEW_FOV_DEG,
 } from './camera/cameraRig';
-import { aimSunAt, createBaseScene } from './core/baseScene';
+import { aimSunAt, applyLighting, createBaseScene } from './core/baseScene';
 import { FrameStats } from './core/frameStats';
 import { GameLoop } from './core/gameLoop';
 import { parseParams } from './core/params';
 import { Simulation } from './core/simulation';
 import { installTestHook, type ScriptedControls } from './core/testHook';
 import { animateRotors, applyPose, createDroneModel } from './drone/droneModel';
-import { headingDegrees, horizontalSpeed } from './drone/droneState';
+import { headingDegrees, heightAboveHome, horizontalSpeed } from './drone/droneState';
 import { GamepadSource } from './input/gamepadSource';
 import { InputManager } from './input/inputManager';
 import { joystickLabelText, JoystickSource, type JoystickStatus } from './input/joystickSource';
@@ -33,6 +33,10 @@ import { JoystickSetupScreen } from './ui/joystickSetup';
 import { hudValues } from './ui/hudValues';
 import { StickMonitor } from './ui/stickMonitor';
 import { ToastList } from './ui/toasts';
+import { WorldMenu, worldLabelText } from './ui/worldMenu';
+import { ENVIRONMENTS, environmentInfo } from './world/catalogue';
+import type { EnvId } from './world/environment';
+import { WorldManager } from './world/worldManager';
 
 const MAX_PIXEL_RATIO = 2;
 
@@ -72,7 +76,9 @@ function start(): void {
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
 
-  const { scene, sun } = createBaseScene();
+  // The empty stage. The ground and everything on it comes with the place that is loaded.
+  const base = createBaseScene();
+  const { scene, sun } = base;
   const drone = createDroneModel();
   scene.add(drone.root);
 
@@ -181,7 +187,8 @@ function start(): void {
       // The drone camera looks out of the camera pod, so the pod itself must not be drawn.
       drone.gimbal.visible = cameraRig.mode !== 'fpv';
       cameraRig.update(camera, pose, frameSeconds);
-      aimSunAt(sun, pose.x, pose.y, pose.z);
+      aimSunAt(sun, pose.x, pose.y, pose.z, sim.state.groundY);
+      worlds.update({ simTime: loop.simTime, camera: camera.position, aircraft: pose });
       renderer.render(scene, camera);
       hud.update(hudValues(sim.state, currentControls().mode), toasts.active(loop.simTime));
       audio.setPaused(loop.paused);
@@ -212,7 +219,7 @@ function start(): void {
       camera: CAMERA_MODE_NAMES[cameraRig.mode],
       drone: {
         phase: state.phase,
-        height: state.y,
+        height: heightAboveHome(state),
         speed: horizontalSpeed(state),
         climbRate: state.vy,
         headingDeg: headingDegrees(state.heading),
@@ -259,9 +266,73 @@ function start(): void {
     overlay.refreshSoon();
   };
 
-  // Flight stick setup: one question at a time, answered by moving the control. Nothing
-  // flies while it is open, so the simulation is paused for as long.
-  let pausedBeforeSetup = false;
+  // The place that is flown in. Changing it frees the old one and builds the new one;
+  // the loading screen covers the view meanwhile and nothing flies.
+  const worldLabel = requireElement('#world-label');
+  const loadingScreen = requireElement('#loading-screen');
+  const loadingText = requireElement('#loading-text');
+  const loadingBar = requireElement('#loading-bar');
+  const worlds = new WorldManager(scene, ENVIRONMENTS, {
+    onLoading: (name, progress) => {
+      loadingText.textContent = `Loading ${name}…`;
+      loadingBar.style.width = `${Math.round(progress * 100)}%`;
+      loadingScreen.hidden = false;
+    },
+    onReady: (environment) => {
+      applyLighting(base, environment.lighting);
+      sim.setWorld({
+        heightAt: (x, z) => environment.heightAt(x, z),
+        spawn: {
+          x: environment.spawn.position.x,
+          z: environment.spawn.position.z,
+          heading: (environment.spawn.headingDeg * Math.PI) / 180,
+        },
+      });
+      toasts.clear();
+      worldLabel.textContent = worldLabelText(environment.name);
+      loadingScreen.hidden = true;
+      drawNow();
+      overlay.refreshSoon();
+    },
+    onFailed: (name, message) => {
+      loadingScreen.hidden = true;
+      toasts.push({ key: 'world', text: `${name}: ${message}`, kind: 'warning' }, loop.simTime);
+      // A place that broke while it was being built leaves nothing to fly in.
+      if (worlds.status === 'failed' && name !== environmentInfo('test').name) {
+        void worlds.load('test', params.seed);
+      }
+    },
+  });
+  const loadWorld = (id: EnvId): Promise<boolean> => worlds.load(id, params.seed);
+
+  // The setup screen and the list of places both take the keyboard and pause the
+  // simulation while they are open. Only one of them is open at a time.
+  let pausedBeforeScreen = false;
+  const onScreenOpenChange = (open: boolean): void => {
+    if (open) {
+      pausedBeforeScreen = loop.paused;
+      loop.paused = true;
+    } else {
+      loop.paused = pausedBeforeScreen;
+    }
+    refreshStatus();
+  };
+
+  const worldMenu = new WorldMenu(requireElement('#world-menu'), ENVIRONMENTS, {
+    current: () => worlds.current?.id ?? null,
+    onChoose: (id) => {
+      void loadWorld(id);
+    },
+    onOpenChange: onScreenOpenChange,
+  });
+  const openWorldMenu = (): void => {
+    if (!joystickSetup.isOpen && !worlds.loading) {
+      worldMenu.show();
+    }
+  };
+  worldLabel.addEventListener('click', openWorldMenu);
+
+  // Flight stick setup: one question at a time, answered by moving the control.
   const joystickSetup = new JoystickSetupScreen(requireElement('#joystick-setup'), {
     devices: () => joystick.devices(),
     onSave: (mapping) => {
@@ -278,30 +349,29 @@ function start(): void {
         loop.simTime,
       );
     },
-    onOpenChange: (open) => {
-      if (open) {
-        pausedBeforeSetup = loop.paused;
-        loop.paused = true;
-      } else {
-        loop.paused = pausedBeforeSetup;
-      }
-      refreshStatus();
-    },
+    onOpenChange: onScreenOpenChange,
   });
   const openJoystickSetup = (): void => {
-    joystickSetup.open(performance.now());
+    if (!worldMenu.isOpen) {
+      joystickSetup.open(performance.now());
+    }
   };
   stickLabel.addEventListener('click', openJoystickSetup);
-  // While the setup is open the keyboard belongs to it: no key reaches the aircraft.
+  // While one of the two screens is open the keyboard belongs to it: no key reaches the
+  // aircraft. The same goes while a place is loading.
   window.addEventListener(
     'keydown',
     (event) => {
       const browserKey =
         event.ctrlKey || event.metaKey || event.altKey || /^F\d+$/.test(event.code);
-      if (!joystickSetup.isOpen || browserKey) {
+      if (browserKey) {
         return;
       }
-      if (joystickSetup.handleKey(event.code, performance.now())) {
+      const taken =
+        joystickSetup.handleKey(event.code, performance.now()) ||
+        worldMenu.handleKey(event.code) ||
+        worlds.loading;
+      if (taken) {
         event.stopImmediatePropagation();
         event.preventDefault();
       }
@@ -376,6 +446,7 @@ function start(): void {
       refreshSoundLabel();
     },
     openJoystickSetup,
+    openWorldMenu,
     isPaused: () => loop.paused,
   });
 
@@ -449,6 +520,17 @@ function start(): void {
       shaped: { ...input.shaped },
     }),
     getAudio: () => audio.snapshot(),
+    getWorld: () => ({
+      id: worlds.current?.id ?? null,
+      name: worlds.current?.name ?? null,
+      status: worlds.status,
+      menuOpen: worldMenu.isOpen,
+      memory: {
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+      },
+    }),
+    setEnvironment: loadWorld,
     getJoystick: () => ({
       status: joystick.status,
       mapping: joystick.mapping,
@@ -480,7 +562,8 @@ function start(): void {
     stats.record(elapsed);
     input.update(timeMs);
     frameSeconds = elapsed;
-    loop.frame(elapsed);
+    // Nothing flies while a place is being built; the view is still drawn.
+    loop.frame(worlds.loading ? 0 : elapsed);
     stickMonitor.update(input);
     refreshFlightStatus();
     refreshSoundLabel();
@@ -488,8 +571,26 @@ function start(): void {
     joystickSetup.update(timeMs);
     overlay.update(elapsed, debugInfo);
 
-    // Lets tests wait until something has really been drawn.
-    document.documentElement.dataset.simReady = 'true';
+    // Lets tests wait until a place is there and has really been drawn.
+    if (worlds.status === 'ready') {
+      document.documentElement.dataset.simReady = 'true';
+    }
+  });
+
+  // The place named in the address, or the test field. A place that is planned but not
+  // built yet is answered with the test field and a note.
+  const wanted = params.env ?? 'test';
+  void loadWorld(worlds.isAvailable(wanted) ? wanted : 'test').then(() => {
+    if (!worlds.isAvailable(wanted)) {
+      toasts.push(
+        {
+          key: 'world',
+          text: `${environmentInfo(wanted).name} is not built yet · this is the Test Field`,
+          kind: 'info',
+        },
+        loop.simTime,
+      );
+    }
   });
 }
 

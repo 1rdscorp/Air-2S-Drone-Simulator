@@ -10,6 +10,7 @@ import {
 import { type FlightEvent, phaseEvents } from '../drone/flightEvents';
 import { DEFAULT_FLIGHT_OPTIONS, type FlightOptions, stepDrone } from '../drone/flightModel';
 import type { ControlFrame, FlightMode } from '../input/types';
+import { FLAT_WORLD, type FlightWorld } from '../world/collision';
 
 /** Everything the simulation knows at one moment. For now that is the aircraft. */
 export type SimState = DroneState;
@@ -38,6 +39,7 @@ export class Simulation {
     gimbalTilt: 0,
   };
   private readonly options: FlightOptions;
+  private flightWorld: FlightWorld = FLAT_WORLD;
   private readonly pending: FlightEvent[] = [];
   /** Flight mode and connection in the previous step; null before the first step. */
   private lastMode: FlightMode | null = null;
@@ -50,8 +52,24 @@ export class Simulation {
   /** Advance by one fixed step of `dt` seconds, flying with the given controls. */
   step(dt: number, controls: ControlFrame): void {
     copyDroneState(this.previous, this.current);
-    stepDrone(this.current, controls, dt, this.options);
+    stepDrone(this.current, controls, dt, this.options, this.flightWorld);
+    const backAtStart = this.previous.phase === 'crashed' && this.current.phase !== 'crashed';
     this.report(controls);
+    if (backAtStart) {
+      // The aircraft was put back at the start: it must not be drawn half-way there.
+      copyDroneState(this.previous, this.current);
+    }
+  }
+
+  /** The world the aircraft flies in: where the ground is, what is solid, where it starts. */
+  get world(): FlightWorld {
+    return this.flightWorld;
+  }
+
+  /** Changes the world and puts the aircraft at its start, motors off. */
+  setWorld(world: FlightWorld): void {
+    this.flightWorld = world;
+    this.reset();
   }
 
   /**
@@ -93,11 +111,18 @@ export class Simulation {
   }
 
   /**
-   * Puts the aircraft back at the start: on the ground with the motors off.
-   * @param height if given, start hovering at this height in metres instead
+   * Puts the aircraft back at the start of the world: on the ground with the motors off.
+   * @param height if given, start hovering this many metres above the start instead
    */
   reset(height?: number): void {
-    const start = height === undefined ? createDroneState() : createFlyingState(height);
+    const { spawn } = this.flightWorld;
+    const place = {
+      x: spawn.x,
+      z: spawn.z,
+      heading: spawn.heading,
+      ground: this.flightWorld.heightAt(spawn.x, spawn.z),
+    };
+    const start = height === undefined ? createDroneState(place) : createFlyingState(height, place);
     copyDroneState(this.current, start);
     copyDroneState(this.previous, start);
     this.pending.length = 0;

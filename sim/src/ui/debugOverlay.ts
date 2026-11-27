@@ -48,7 +48,7 @@ export function formatDrone(drone: DebugInfo['drone']): string {
   // Avoids "-0.0" and always shows the sign, so climbing and descending are easy to tell apart.
   const climb = Math.abs(drone.climbRate) < 0.05 ? 0 : drone.climbRate;
   const heading = String(Math.round(drone.headingDeg) % 360).padStart(3, '0');
-  const falling = drone.phase === 'motorsOff' && !drone.onGround;
+  const falling = (drone.phase === 'motorsOff' || drone.phase === 'crashed') && !drone.onGround;
   const parts = [
     falling ? 'falling' : PHASE_LABELS[drone.phase],
     `${drone.height.toFixed(1)} m`,

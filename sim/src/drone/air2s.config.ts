@@ -9,7 +9,7 @@
  *   MODE_TUNING    Values DJI does not publish (how quickly the aircraft reacts). They
  *                  are tuned by feel and by the tests, and are the ones to change when
  *                  the flight does not feel right. The same goes for CINE_CHOSEN,
- *                  FLIGHT_PROCEDURE and PROPULSION_CHOSEN.
+ *                  FLIGHT_PROCEDURE, CRASH_CHOSEN and PROPULSION_CHOSEN.
  *
  * Sources:
  *   [support]  DJI support page, https://www.dji.com/support/product/air-2s
@@ -263,6 +263,30 @@ export const GIMBAL_TUNING = {
   shortcutGain: 6,
   /** Recentre and look-down shortcuts: their top speed, the published maximum. */
   shortcutSpeed: AIR_2S_SPECS.gimbal.maxTiltSpeed,
+} as const;
+
+/**
+ * What counts as a crash, and what happens after one. Chosen values: a camera drone
+ * tips over or breaks long before these numbers on hard ground, but a simulator that
+ * punishes every firm landing is no fun to learn on.
+ */
+export const CRASH_CHOSEN = {
+  /** Coming down on a surface faster than this is a crash, in m/s. */
+  maxTouchdownSpeed: 3,
+  /** Touching a surface while moving sideways faster than this is a crash, in m/s. */
+  maxSlideSpeed: 2.5,
+  /** Flying into the side of something faster than this is a crash, in m/s. Slower just stops. */
+  maxBumpSpeed: 0.8,
+  /**
+   * A surface that is at most this much higher than the aircraft is still "the ground it
+   * is coming down on" (a slope, a kerb); higher than that it is a wall. In metres.
+   */
+  stepHeight: 0.25,
+  /** Seconds the wreck lies there before the aircraft is put back at the start. */
+  resetDelay: 3,
+  /** How a crashed aircraft lies: tipped over to the side and a little nose up, in radians. */
+  restRoll: 32 * DEG,
+  restPitch: -12 * DEG,
 } as const;
 
 /**

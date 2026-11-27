@@ -248,9 +248,16 @@ test.describe('flight display', () => {
     await expect(toasts(page).last()).toHaveClass(/is-warning/);
     expect(await hudNumber(page, 'climb')).toBeLessThan(0);
 
-    await fly(page, 6);
-    await expect(toasts(page).last()).toHaveText('The aircraft hit the ground');
+    // From 40 m the fall ends in a crash.
+    await fly(page, 2.5);
+    await expect(toasts(page).last()).toHaveText('Crashed');
+    await expect(toasts(page).last()).toHaveClass(/is-warning/);
     await expect(hud(page, 'height')).toHaveText('0.0');
+
+    // A few seconds later the aircraft is back at the start, whole.
+    await fly(page, 3.5);
+    await expect(toasts(page).last()).toHaveText('Back at the start');
+    await expect(toasts(page).last()).not.toHaveClass(/is-warning/);
   });
 
   test('putting the aircraft back at the start clears the display', async ({ page }) => {

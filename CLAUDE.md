@@ -15,6 +15,8 @@ in its decision log (section 9).
 
 - `sim/` — web simulator: TypeScript (strict), Three.js, Vite.
   - `sim/src/` — app code; unit tests sit next to the code as `*.test.ts`.
+  - `sim/src/world/` — the places to fly: the `Environment` interface, the world manager,
+    the list of places (`catalogue.ts`) and one file per place.
   - `sim/e2e/` — Playwright browser tests; `*-snapshots/` folders hold reference pictures.
 - `rc-probe/` — small Android app for the controller check of Step 04 (Kotlin). Two
   builds: `plain` (no DJI software) and `dji` (DJI Mobile SDK 4.18). It is a throw-away
@@ -71,21 +73,33 @@ Notes for headless and cloud sessions:
 - Address settings: `?debug=1` (overlay), `?paused=1`, `?speed=0.5` (0.05 to 8),
   `?stickmode=1|2|3`, `?expo=0..1`, `?sticks=0` (hide the stick monitor),
   `?camera=chase|fpv|free`, `?gimbalup=1` (camera may tilt up to +24°), `?sound=0`
-  (start muted), `?volume=0..1`, plus `env`,
-  `time`, `seed`, `quality`, which are read now and used from Steps 10, 17, 11, 20.
+  (start muted), `?volume=0..1`, `?env=test|mountains|ocean|beach|city` (the place to start
+  in; one that is not built yet gives the test field and a note), plus `time`, `seed`,
+  `quality`, which are read now and used from Steps 17, 11, 20.
 - Keys: `` ` `` or F2 overlay, I stick monitor, V next camera view, M sound, J flight stick
-  setup, P pause, `.` one step while paused, `-` and `=` speed, Backspace puts the aircraft
-  back at the start.
+  setup, E list of places, P pause, `.` one step while paused, `-` and `=` speed, Backspace
+  puts the aircraft back at the start.
 - `window.__sim` (see `sim/src/core/testHook.ts`): `tick`, `time`, `paused`, `timeScale`,
   `pause()`, `resume()`, `step(n)`, `reset({ height? })`, `setControls({...} | null)`,
   `setCamera(mode)`, `getCamera()`, `getState()`, `getStats()`, `getInput()`, `getAudio()`,
-  `getJoystick()`, `params`.
+  `getJoystick()`, `getWorld()` (place, loading status, and the renderer's counts of
+  geometries and textures), `setEnvironment(id)` (loads a place; resolves when it is
+  ready), `params`.
 - The aircraft starts on the ground with the motors off. For an exact flight test: open
   with `?paused=1`, call `__sim.reset({ height: 20 })` to start in a hover, then
   `__sim.setControls({ pitch: 1, mode: 'S', buttons: { takeoffLand: true } })`,
   `__sim.step(n)` and read `__sim.getState()`. See `sim/e2e/flight.spec.ts`.
 - `__sim.step(n)` redraws once per call, and a redraw is slow in the software renderer.
   Step many ticks in one call; never call `step(1)` in a long loop.
+- `reset({ height })` puts the aircraft above the start of the place. The test field has
+  obstacles: the cube is 14 m east and 26 m north, the platform 18 m east and 9 m north
+  (`TEST_FIELD_OBSTACLES`). The four straight lines from the start (north, south, east,
+  west) are kept clear for 6 m to either side, so straight test flights hit nothing.
+- A test that flies low, comes down fast or cuts the motors now meets the crash rules:
+  see "World" below.
+- Some browser tests run in real time (the flight stick setup). Everything more to draw
+  makes them slower in the software renderer, so they have a longer time limit; give a
+  new real-time test one too rather than a tight one.
 - Flight keys and gamepad buttons are defined in `sim/src/input/keyboardSource.ts` and
   `gamepadSource.ts`. Keep the Controls tables in `README.md` in step with them, and keep
   new flight keys clear of the debug keys above.
@@ -115,6 +129,42 @@ Notes for headless and cloud sessions:
 - Nobody can plug a flight stick into a headless session. What the real device does (how
   many axes, which is which, how hat switches arrive) is only known from the owner's
   reports; the check page `controller-check.html` shows it.
+
+## World
+
+- A place to fly is an `Environment` (`sim/src/world/environment.ts`): it builds its
+  scenery under the root it is given in `load`, says where the aircraft starts (`spawn`),
+  how the place is lit (`lighting`), and answers `heightAt(x, z)` and `raycast`. It frees
+  every geometry, material and texture in `dispose()`; `disposeTree` does that for a
+  whole tree of objects. Nothing of a place is added to the scene outside its root.
+- `catalogue.ts` lists the places. One with `create: null` is not built yet: it is shown
+  in the list, cannot be chosen, and `?env=` falls back to the test field. To add a
+  place, write its file and give its catalogue entry a `create`.
+- `WorldManager` loads one place at a time: it frees the old one first, shows the loading
+  screen, and tells `main.ts` when the new one is ready. `main.ts` then lights the scene
+  (`applyLighting`) and starts a new flight there (`Simulation.setWorld`). The simulation
+  stands still while a place loads and while the list (E) is open.
+- The step's rule: loading places again and again must not leave anything on the graphics
+  card. `sim/e2e/world.spec.ts` reloads ten times and compares `getWorld().memory`. When a
+  new place is added, add it to that test.
+- The flight only knows the world as a height: `FlightWorld.heightAt(x, z)` is the surface
+  below a spot, obstacles included (`sim/src/world/collision.ts`). So nothing can be flown
+  under; a bridge or an arch needs more than this. `raycast` is for obstacle sensing
+  (Step 27).
+- Crashes are decided in `flightModel.ts` from `CRASH_CHOSEN` in `air2s.config.ts`: coming
+  down faster than 3 m/s, touching a surface at more than 2.5 m/s sideways, or flying into
+  the side of something at more than 0.8 m/s. A crashed aircraft (phase `crashed`) falls,
+  lies there for 3 s and is put back at the start with the motors off. A descent by hand
+  is slowed near the surface (`gentleDescent`), so an ordinary landing is never a crash.
+- `state.groundY` is the surface below the aircraft, `state.homeY` the height of the spot
+  where the motors were started. The display shows the height above home.
+- Paint on a surface (a landing mark) is a thin mesh 3 mm above it with a small polygon
+  offset. Do not lay it on one huge triangle: across a triangle kilometres long the depth
+  is worked out too coarsely and the paint flickers or vanishes. The test field's ground
+  is cut into 200 m squares for that reason.
+- Obstacles cast no shadows yet: the sun's shadow area is a few metres wide and follows
+  the aircraft, so they would cast a cut-off piece that travels with it. Step 17 brings
+  shadows for the whole view.
 
 ## Sound
 
@@ -178,16 +228,18 @@ scene is mostly flat sky and ground, so even a clearly different view changes we
   deadzone and expo. A flight stick reports its controls in the form of stick mode 2 and
   says so (`stickMode`), and says which of the four flight controls it has (`provides`).
 - Every environment implements the `Environment` interface and frees everything in
-  `dispose()`.
+  `dispose()`; see "World".
 - All Air 2S numbers live in `sim/src/drone/air2s.config.ts`: published values with their
   source in `AIR_2S_SPECS`; chosen and tuned values (not published) separately in
-  `CINE_CHOSEN`, `MODE_TUNING`, `FLIGHT_PROCEDURE` and `PROPULSION_CHOSEN` (motor speeds,
-  for the sound). Flight feel is changed there, never in `flightModel.ts`.
+  `CINE_CHOSEN`, `MODE_TUNING`, `FLIGHT_PROCEDURE`, `CRASH_CHOSEN` and `PROPULSION_CHOSEN`
+  (motor speeds, for the sound). Flight feel is changed there, never in `flightModel.ts`.
 - What the aircraft is doing is its flight phase (motors off, idle, taking off, flying,
-  landing). `sim/src/drone/flightPhase.ts` decides the phase from sticks and buttons;
-  `flightModel.ts` moves the aircraft for that phase.
+  landing, crashed). `sim/src/drone/flightPhase.ts` decides the phase from sticks and
+  buttons; `flightModel.ts` moves the aircraft for that phase and decides what touching
+  the world does.
 - The aircraft state is `DroneState` in `sim/src/drone/droneState.ts`. `y` is the height of
-  its underside, so 0 means standing on the ground. Heading 0 is north and grows turning
+  its underside in the world, so on the test field 0 means standing on the ground, and
+  standing on something it equals `groundY`. Heading 0 is north and grows turning
   right; it is not wrapped at 360°. Positive pitch is nose down, positive roll is right
   side down.
 - World content is procedural and seeded. No DJI logos, artwork or copied screen designs.
