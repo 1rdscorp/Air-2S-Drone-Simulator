@@ -33,7 +33,7 @@ describe('flightMessage', () => {
       (type) => flightMessage({ type }).kind === 'warning',
     );
 
-    expect(warnings).toEqual(['motorsCut', 'hitGround', 'controlLost']);
+    expect(warnings).toEqual(['motorsCut', 'hitGround', 'crashed', 'controlLost']);
   });
 
   it('lets a later message about the flight replace the earlier one', () => {

@@ -112,8 +112,9 @@ body {
   display: none;
 }
 
-/* The flight stick label can be clicked to open the setup. */
-#stick-label {
+/* The flight stick label opens the setup when clicked, the place label the list of places. */
+#stick-label,
+#world-label {
   cursor: pointer;
   pointer-events: auto;
 }
@@ -768,4 +769,135 @@ body {
   background: rgb(255 255 255 / 12%);
   color: #e6edf3;
   font-weight: 600;
+}
+
+/* ---- Places to fly: the menu and the loading screen ---------------------------------- */
+
+#world-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(13 17 23 / 55%);
+}
+
+#world-menu[hidden] {
+  display: none;
+}
+
+.wm-panel {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 20px 24px;
+  border-radius: 14px;
+  background: #161b22;
+  color: #e6edf3;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 50%);
+}
+
+.wm-heading {
+  margin: 0 0 12px;
+  font-size: 22px;
+}
+
+.wm-list {
+  display: grid;
+  gap: 6px;
+}
+
+.wm-row {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 0 10px;
+  padding: 10px 12px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wm-row.is-highlighted {
+  border-color: #ffd166;
+}
+
+.wm-row[disabled] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.wm-number {
+  grid-row: span 2;
+  align-self: center;
+  color: rgb(230 237 243 / 60%);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.wm-name {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.wm-row.is-current .wm-name::after {
+  margin-left: 8px;
+  color: #7ee787;
+  font-size: 12px;
+  font-weight: 600;
+  content: 'you are here';
+}
+
+.wm-summary {
+  color: rgb(230 237 243 / 70%);
+  font-size: 13px;
+}
+
+.wm-hint {
+  margin: 12px 0 0;
+  color: rgb(230 237 243 / 60%);
+  font-size: 12px;
+}
+
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: #0d1117;
+  color: #e6edf3;
+}
+
+#loading-screen[hidden] {
+  display: none;
+}
+
+.ld-box {
+  width: min(360px, calc(100vw - 48px));
+  text-align: center;
+}
+
+#loading-text {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ld-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 14%);
+}
+
+#loading-bar {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: #ffd166;
 }

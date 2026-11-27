@@ -285,7 +285,7 @@ describe('flying', () => {
   });
 
   it('-> idle: touching the ground by hand leaves the motors running', () => {
-    const state = run(createFlyingState(2), 1.5, { throttle: -1 });
+    const state = run(createFlyingState(2), 2.5, { throttle: -1 });
 
     expect(state.phase).toBe('idle');
     expect(state).toMatchObject({ y: 0, vy: 0, onGround: true });

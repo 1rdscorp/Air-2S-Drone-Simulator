@@ -1,11 +1,8 @@
 import { CAMERA_MODES, type CameraMode } from '../camera/cameraRig';
 import { DEFAULT_INPUT_SETTINGS } from '../input/inputManager';
 import { STICK_MODES, type StickMode } from '../input/types';
+import { ENV_IDS, type EnvId } from '../world/environment';
 import { MAX_TIME_SCALE, MIN_TIME_SCALE } from './gameLoop';
-
-/** Environment names from docs/PLAN.md. TODO(step-10): take these from the world module. */
-export const ENV_IDS = ['test', 'mountains', 'city', 'ocean', 'beach'] as const;
-export type EnvId = (typeof ENV_IDS)[number];
 
 /** Quality presets from docs/PLAN.md. TODO(step-20): take these from the quality settings. */
 export const QUALITY_IDS = ['low', 'medium', 'high', 'ultra'] as const;
@@ -17,7 +14,7 @@ export type QualityId = (typeof QUALITY_IDS)[number];
  * They make any view repeatable, which screenshots and tests rely on.
  */
 export interface SimParams {
-  /** Environment to load. Not used yet. TODO(step-10) */
+  /** The place to fly in at the start; the test field when left out. */
   env: EnvId | null;
   /** Time of day in hours, 0 to 24. Not used yet. TODO(step-17) */
   timeOfDay: number | null;

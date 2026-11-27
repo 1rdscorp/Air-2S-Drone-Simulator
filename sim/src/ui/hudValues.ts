@@ -1,4 +1,9 @@
-import { distanceFromHome, type DroneState, headingDegrees } from '../drone/droneState';
+import {
+  distanceFromHome,
+  type DroneState,
+  headingDegrees,
+  heightAboveHome,
+} from '../drone/droneState';
 import type { FlightMode } from '../input/types';
 
 const DEGREES = 180 / Math.PI;
@@ -9,7 +14,7 @@ const HOME_DIRECTION_MIN_DISTANCE = 0.5;
 /** The numbers on the flight display, in display units (metres, m/s, degrees). */
 export interface HudValues {
   mode: FlightMode;
-  /** Height above the ground. */
+  /** Height above the home point; above the ground until there is one. */
   height: number;
   /** Distance over the ground to the home point; null until a home point exists. */
   distance: number | null;
@@ -60,7 +65,7 @@ export function hudValues(state: Readonly<DroneState>, mode: FlightMode): HudVal
 
   return {
     mode,
-    height: state.y,
+    height: heightAboveHome(state),
     distance,
     speed: Math.hypot(state.vx, state.vz),
     climb: state.vy,

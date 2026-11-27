@@ -1,6 +1,6 @@
 import type { FlightMode } from '../input/types';
 import { FLIGHT_PROCEDURE } from './air2s.config';
-import type { DroneState } from './droneState';
+import { type DroneState, motorsRunning } from './droneState';
 
 /**
  * Things that happen during a flight and are worth telling the pilot.
@@ -17,7 +17,9 @@ import type { DroneState } from './droneState';
  *   touchedDown       set down by hand; the motors are still running
  *   motorsStopped     motors stopped on the ground
  *   motorsCut         motors stopped in the air (emergency stop); the aircraft falls
- *   hitGround         a falling aircraft reached the ground
+ *   hitGround         a falling aircraft reached the ground gently enough to stay whole
+ *   crashed           it hit the ground or an obstacle too hard
+ *   backAtStart       after a crash, the aircraft was put back where the flight started
  *   modeChanged       the flight mode switch was moved; `mode` is the new mode
  *   controlLost       the controller is no longer connected
  *   controlRestored   the controller is connected again
@@ -36,6 +38,8 @@ export const FLIGHT_EVENT_TYPES = [
   'motorsStopped',
   'motorsCut',
   'hitGround',
+  'crashed',
+  'backAtStart',
   'modeChanged',
   'controlLost',
   'controlRestored',
@@ -63,9 +67,15 @@ export function phaseEvents(
     const fellToGround = after.phase === 'motorsOff' && !before.onGround && after.onGround;
     return fellToGround ? ['hitGround'] : [];
   }
+  if (after.phase === 'crashed') {
+    return ['crashed'];
+  }
+  if (before.phase === 'crashed') {
+    return ['backAtStart'];
+  }
 
   const events: FlightEventType[] = [];
-  if (before.phase === 'motorsOff') {
+  if (!motorsRunning(before.phase) && motorsRunning(after.phase)) {
     events.push('homePointSet');
   }
 
@@ -90,8 +100,8 @@ export function phaseEvents(
 
     case 'flying':
       if (before.phase === 'takingOff') {
-        const reached =
-          Math.abs(after.y - FLIGHT_PROCEDURE.takeoffHeight) < TAKEOFF_COMPLETE_WITHIN;
+        const height = after.y - after.groundY;
+        const reached = Math.abs(height - FLIGHT_PROCEDURE.takeoffHeight) < TAKEOFF_COMPLETE_WITHIN;
         events.push(reached ? 'takeoffComplete' : 'takeoffStopped');
       } else if (before.phase === 'landing') {
         events.push('landingCancelled');

@@ -1,4 +1,4 @@
-import type { DroneState, FlightPhase } from './droneState';
+import { type DroneState, type FlightPhase, motorsRunning } from './droneState';
 
 /**
  * Keeps the home point and the flight clock.
@@ -12,14 +12,15 @@ import type { DroneState, FlightPhase } from './droneState';
  * @param phaseBefore the flight phase before this step's phase decision
  */
 export function updateFlightRecord(state: DroneState, phaseBefore: FlightPhase, dt: number): void {
-  const motorsRunning = state.phase !== 'motorsOff';
-  if (motorsRunning && phaseBefore === 'motorsOff') {
+  const running = motorsRunning(state.phase);
+  if (running && !motorsRunning(phaseBefore)) {
     state.homeSet = true;
     state.homeX = state.x;
+    state.homeY = state.y;
     state.homeZ = state.z;
     state.flightSeconds = 0;
   }
-  if (motorsRunning) {
+  if (running) {
     state.flightSeconds += dt;
   }
 }

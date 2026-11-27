@@ -307,7 +307,7 @@ describe('directions', () => {
 
 describe('ground', () => {
   it('stops on the ground instead of sinking through it', () => {
-    const state = fly(createFlyingState(2), 2, { throttle: -1, pitch: 1 });
+    const state = fly(createFlyingState(2), 4, { throttle: -1 });
 
     expect(state.y).toBe(0);
     expect(state.onGround).toBe(true);

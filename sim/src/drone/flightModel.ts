@@ -1,5 +1,7 @@
 import { type ControlFrame, noButtonsPressed } from '../input/types';
+import { FLAT_WORLD, type FlightWorld } from '../world/collision';
 import {
+  CRASH_CHOSEN,
   DRAG,
   FLIGHT_PROCEDURE,
   type FlightTuning,
@@ -8,13 +10,10 @@ import {
   MODE_TUNING,
   type ModeLimits,
 } from './air2s.config';
-import type { DroneState } from './droneState';
+import { createDroneState, type DroneState } from './droneState';
 import { type Sticks, updatePhase } from './flightPhase';
 import { updateFlightRecord } from './flightRecord';
 import { stepGimbal } from './gimbal';
-
-/** Height of the ground. Flat for now. TODO(step-10): ask the environment. */
-const GROUND_HEIGHT = 0;
 
 const NO_BUTTONS = noButtonsPressed();
 
@@ -38,7 +37,8 @@ function stick(value: number): number {
  * Advances the aircraft by one fixed step.
  *
  * First the flight phase is decided (see `updatePhase`): motors off, idle on the ground,
- * automatic take-off, flying, or automatic landing. Then the aircraft moves accordingly.
+ * automatic take-off, flying, or automatic landing. Then the aircraft moves accordingly,
+ * and last it is checked against the world: has it come down on something, or hit it?
  *
  * In powered flight it works the way a camera drone does. The pilot does not steer
  * motors; the sticks ask the flight controller for a speed, a climb rate and a turn rate:
@@ -54,12 +54,14 @@ function stick(value: number): number {
  *
  * @param state changed in place
  * @param dt step length in seconds
+ * @param world where the ground is and what stands on it; flat ground if left out
  */
 export function stepDrone(
   state: DroneState,
   controls: ControlFrame,
   dt: number,
   options: Readonly<FlightOptions> = DEFAULT_FLIGHT_OPTIONS,
+  world: FlightWorld = FLAT_WORLD,
 ): void {
   // TODO(step-24): proper signal-loss behaviour. For now a lost controller means centred
   // sticks and no buttons.
@@ -73,8 +75,11 @@ export function stepDrone(
 
   const buttons = live ? controls.buttons : NO_BUTTONS;
 
+  const before = { x: state.x, y: state.y, z: state.z };
+  const ground = world.heightAt(state.x, state.z);
+
   const phaseBefore = state.phase;
-  updatePhase(state, sticks, buttons, dt);
+  updatePhase(state, sticks, buttons, dt, ground);
   updateFlightRecord(state, phaseBefore, dt);
   stepGimbal(state, live ? controls.gimbal : 0, buttons, dt, options.gimbalUpward);
 
@@ -85,6 +90,11 @@ export function stepDrone(
     case 'motorsOff':
       if (!state.onGround) {
         fall(state, dt);
+        if (touches(state, before, world) !== 'nothing') {
+          // Whatever it meets on the way down ends the fall; a hard one is a crash.
+          const hard = -state.vy > CRASH_CHOSEN.maxTouchdownSpeed;
+          comeToRest(state, before, world, hard ? 'crashed' : 'motorsOff');
+        }
       }
       break;
 
@@ -95,43 +105,187 @@ export function stepDrone(
     case 'takingOff': {
       // Straight up to hover height, slowing down as it gets there. The sticks are ignored,
       // and it behaves the same whatever the flight mode is.
-      const remaining = FLIGHT_PROCEDURE.takeoffHeight - state.y;
+      const remaining = ground + FLIGHT_PROCEDURE.takeoffHeight - state.y;
       const climb = clamp(
         FLIGHT_PROCEDURE.takeoffGain * remaining,
         -0.5,
         FLIGHT_PROCEDURE.takeoffClimbSpeed,
       );
       const centred = { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
-      flyPowered(state, centred, climb, dt, MODE_LIMITS.N, MODE_TUNING.N);
+      flyPowered(state, centred, climb, dt, MODE_LIMITS.N, MODE_TUNING.N, ground);
+      landOrCrash(state, before, world, 'idle');
       break;
     }
 
     case 'flying':
-      flyPowered(state, sticks, null, dt, limits, tuning);
-      if (state.onGround) {
-        state.phase = 'idle'; // landed by hand: motors keep running
-      }
+      flyPowered(state, sticks, null, dt, limits, tuning, ground);
+      // Set down by hand: the motors keep running.
+      landOrCrash(state, before, world, 'idle');
       break;
 
     case 'landing': {
       // Steady descent that slows near the ground. The pilot can still steer and turn.
-      const height = clamp((state.y - GROUND_HEIGHT) / FLIGHT_PROCEDURE.landingSlowHeight, 0, 1);
-      const descent =
-        FLIGHT_PROCEDURE.landingTouchdownSpeed +
-        (FLIGHT_PROCEDURE.landingSpeed - FLIGHT_PROCEDURE.landingTouchdownSpeed) * height;
-      flyPowered(state, sticks, -descent, dt, limits, tuning);
-      if (state.onGround) {
-        state.phase = 'motorsOff'; // automatic landing ends with the motors stopped
-      }
+      const descent = gentleDescent(state.y - ground, FLIGHT_PROCEDURE.landingSpeed);
+      flyPowered(state, sticks, -descent, dt, limits, tuning, ground);
+      // An automatic landing ends with the motors stopped.
+      landOrCrash(state, before, world, 'motorsOff');
       break;
     }
+
+    case 'crashed':
+      if (!state.onGround) {
+        fall(state, dt);
+        if (touches(state, before, world) !== 'nothing') {
+          comeToRest(state, before, world, 'crashed');
+        }
+      } else {
+        state.crashSeconds += dt;
+        if (state.crashSeconds >= CRASH_CHOSEN.resetDelay) {
+          backToStart(state, world);
+        }
+      }
+      break;
   }
+
+  state.groundY = world.heightAt(state.x, state.z);
+}
+
+/**
+ * The descent speed that is safe at this height: `fastest` high up, slowing below
+ * `landingSlowHeight` to the gentle touchdown speed. Used by the automatic landing, and as
+ * the limit when the pilot descends by hand, so that an ordinary landing is never a crash.
+ */
+function gentleDescent(heightAboveGround: number, fastest: number): number {
+  const share = clamp(heightAboveGround / FLIGHT_PROCEDURE.landingSlowHeight, 0, 1);
+  const slowest = Math.min(FLIGHT_PROCEDURE.landingTouchdownSpeed, fastest);
+  return slowest + (fastest - slowest) * share;
+}
+
+/**
+ * How the aircraft has met the world in this step, if at all.
+ *
+ *   surface  it came down on something: the ground, a slope, a roof
+ *   wall     the surface at its new place is well above where it was flying: it flew
+ *            into the side of something
+ */
+function touches(
+  state: DroneState,
+  before: { x: number; y: number; z: number },
+  world: FlightWorld,
+): 'nothing' | 'surface' | 'wall' {
+  const surface = world.heightAt(state.x, state.z);
+  if (state.y > surface) {
+    return 'nothing';
+  }
+  return before.y >= surface - CRASH_CHOSEN.stepHeight ? 'surface' : 'wall';
+}
+
+/**
+ * After a step of powered flight: sets the aircraft down, stops it at a wall, or crashes it.
+ * @param landedPhase the phase a gentle touchdown leads to
+ */
+function landOrCrash(
+  state: DroneState,
+  before: { x: number; y: number; z: number },
+  world: FlightWorld,
+  landedPhase: 'idle' | 'motorsOff',
+): void {
+  const contact = touches(state, before, world);
+  if (contact === 'nothing') {
+    return;
+  }
+  const sideways = Math.hypot(state.vx, state.vz);
+
+  if (contact === 'wall') {
+    if (sideways > CRASH_CHOSEN.maxBumpSpeed) {
+      comeToRest(state, before, world, 'crashed');
+      return;
+    }
+    // A slow nudge: it stops where it was and stays in the air.
+    state.x = before.x;
+    state.z = before.z;
+    state.vx = 0;
+    state.vz = 0;
+    state.holdActive = false;
+    if (state.y > world.heightAt(state.x, state.z)) {
+      return;
+    }
+  } else if (state.vy > 0) {
+    // Skimming a surface while climbing away from it is not a landing.
+    state.y = world.heightAt(state.x, state.z);
+    return;
+  }
+
+  const hard = -state.vy > CRASH_CHOSEN.maxTouchdownSpeed || sideways > CRASH_CHOSEN.maxSlideSpeed;
+  comeToRest(state, before, world, hard ? 'crashed' : landedPhase);
+}
+
+/**
+ * Ends the motion. A wall throws the aircraft back to where it was, from where it falls;
+ * a surface is where it stays. A crash leaves it lying tipped over.
+ */
+function comeToRest(
+  state: DroneState,
+  before: { x: number; y: number; z: number },
+  world: FlightWorld,
+  phase: 'idle' | 'motorsOff' | 'crashed',
+): void {
+  if (touches(state, before, world) === 'wall') {
+    state.x = before.x;
+    state.z = before.z;
+  }
+  const surface = world.heightAt(state.x, state.z);
+  const crashed = phase === 'crashed';
+  if (crashed && state.phase !== 'crashed') {
+    state.crashSeconds = 0;
+  }
+  state.phase = phase;
+  state.vx = 0;
+  state.vz = 0;
+  state.pitchRate = 0;
+  state.rollRate = 0;
+  state.yawRate = 0;
+  state.holdActive = false;
+  state.altitudeHoldActive = false;
+
+  if (state.y > surface) {
+    // Stopped by a wall high up: the motors are off and it drops from here.
+    state.vy = Math.min(state.vy, 0);
+    state.onGround = false;
+    return;
+  }
+  state.y = surface;
+  state.vy = 0;
+  state.onGround = true;
+  state.pitch = crashed ? CRASH_CHOSEN.restPitch : 0;
+  state.roll = crashed ? CRASH_CHOSEN.restRoll : 0;
+}
+
+/**
+ * Puts a crashed aircraft back where the flight started, as if it had never flown. Buttons
+ * and sticks that are still held do not count as newly pressed.
+ */
+function backToStart(state: DroneState, world: FlightWorld): void {
+  const { spawn } = world;
+  const fresh = createDroneState({
+    x: spawn.x,
+    z: spawn.z,
+    heading: spawn.heading,
+    ground: world.heightAt(spawn.x, spawn.z),
+  });
+  fresh.takeoffButtonWasDown = state.takeoffButtonWasDown;
+  fresh.pauseButtonWasDown = state.pauseButtonWasDown;
+  fresh.c1ButtonWasDown = state.c1ButtonWasDown;
+  fresh.c2ButtonWasDown = state.c2ButtonWasDown;
+  fresh.stickCommandArmed = false;
+  Object.assign(state, fresh);
 }
 
 /**
  * Powered flight for one step.
  * @param climbOverride climb rate in m/s chosen by the flight controller (take-off,
  *   landing), or null to let the pilot's throttle stick decide
+ * @param ground height of the surface below the aircraft, in metres
  */
 function flyPowered(
   state: DroneState,
@@ -140,6 +294,7 @@ function flyPowered(
   dt: number,
   limits: ModeLimits,
   tuning: FlightTuning,
+  ground: number,
 ): void {
   state.onGround = false;
 
@@ -151,6 +306,8 @@ function flyPowered(
   } else if (sticks.throttle !== 0) {
     state.altitudeHoldActive = false;
     climbTarget = sticks.throttle * (sticks.throttle > 0 ? limits.maxAscent : limits.maxDescent);
+    // Close to the ground the aircraft slows its descent by itself, as the real one does.
+    climbTarget = Math.max(climbTarget, -gentleDescent(state.y - ground, limits.maxDescent));
   } else {
     if (!state.altitudeHoldActive && Math.abs(state.vy) < tuning.altitudeLatchSpeed) {
       state.altitudeHoldActive = true;
@@ -270,13 +427,9 @@ function flyPowered(
 
   state.yawRate += yawAcceleration * dt;
   state.heading += state.yawRate * dt;
-
-  if (state.y <= GROUND_HEIGHT && state.vy <= 0) {
-    settleOnGround(state);
-  }
 }
 
-/** Motors cut in the air: the aircraft falls, slowed only by air drag, until it hits the ground. */
+/** Motors off in the air: the aircraft falls, slowed only by air drag. */
 function fall(state: DroneState, dt: number): void {
   const speed = Math.hypot(state.vx, state.vy, state.vz);
   state.vx += -DRAG * speed * state.vx * dt;
@@ -290,27 +443,4 @@ function fall(state: DroneState, dt: number): void {
   state.yawRate = 0;
   state.pitchRate = 0;
   state.rollRate = 0;
-
-  if (state.y <= GROUND_HEIGHT) {
-    settleOnGround(state);
-  }
-}
-
-/**
- * Puts the aircraft at rest on the ground.
- * TODO(step-10): hard landings and crashes. For now touching the ground simply stops.
- */
-function settleOnGround(state: DroneState): void {
-  state.y = GROUND_HEIGHT;
-  state.vx = 0;
-  state.vy = 0;
-  state.vz = 0;
-  state.pitch = 0;
-  state.roll = 0;
-  state.pitchRate = 0;
-  state.rollRate = 0;
-  state.yawRate = 0;
-  state.onGround = true;
-  state.holdActive = false;
-  state.altitudeHoldActive = false;
 }

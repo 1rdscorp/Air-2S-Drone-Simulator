@@ -1,5 +1,5 @@
 import { MODE_LIMITS, PROPULSION_CHOSEN } from '../drone/air2s.config';
-import type { DroneState } from '../drone/droneState';
+import { type DroneState, motorsRunning } from '../drone/droneState';
 import type { FlightEvent } from '../drone/flightEvents';
 
 /**
@@ -102,7 +102,7 @@ export function motorLoad(state: Pick<DroneState, 'pitch' | 'roll' | 'vy'>): num
 /** The motors' speed, note and loudness for the state the aircraft is in. */
 export function motorSound(state: Readonly<DroneState>): MotorSound {
   const { blades, idleRpm, hoverRpm, maxRpm } = PROPULSION_CHOSEN;
-  if (state.phase === 'motorsOff') {
+  if (!motorsRunning(state.phase)) {
     return { running: false, rpm: 0, frequencies: [0, 0, 0, 0], level: 0 };
   }
 
@@ -269,6 +269,18 @@ export function toneForEvent(event: FlightEvent): ToneSpec | null {
       return thud('touchedDown', 110, 0.12, 0.5);
     case 'hitGround':
       return thud('hitGround', 150, 0.3, 0.9);
+    case 'crashed':
+      // A hard knock, then two falling warning notes.
+      return {
+        name: 'crashed',
+        notes: [
+          { frequency: 190, slideTo: 45, start: 0, duration: 0.35, shape: 'square', level: 0.7 },
+          { frequency: 440, start: 0.42, duration: 0.14, shape: 'square', level: 0.3 },
+          { frequency: 311, start: 0.6, duration: 0.22, shape: 'square', level: 0.3 },
+        ],
+      };
+    case 'backAtStart':
+      return melody('backAtStart', [523, 659], { level: 0.35 });
     case 'motorsCut':
       return melody('motorsCut', [988, 988, 988, 988], {
         length: 0.12,

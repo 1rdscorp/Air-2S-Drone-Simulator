@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SIM_DT, SIM_HZ } from '../core/gameLoop';
 import { Simulation } from '../core/simulation';
 import { type ButtonId, type ControlFrame, neutralFrame, noButtonsPressed } from '../input/types';
-import { FLIGHT_PROCEDURE } from './air2s.config';
+import { CRASH_CHOSEN, FLIGHT_PROCEDURE } from './air2s.config';
 import { createDroneState, createFlyingState } from './droneState';
 import { type FlightEvent, phaseEvents } from './flightEvents';
 
@@ -93,14 +93,39 @@ describe('flight events', () => {
     expect(sim.phase).toBe('motorsOff');
   });
 
-  it('emergency stop: motors cut in the air, then the aircraft hits the ground', () => {
+  it('emergency stop high up: motors cut, crashed, then back at the start', () => {
     const sim = airborne(30);
 
     expect(run(sim, FLIGHT_PROCEDURE.emergencyStopHold + 0.1, STICK_COMMAND)).toEqual([
       'motorsCut',
     ]);
-    expect(run(sim, 10)).toEqual(['hitGround']);
-    expect(sim.snapshot().onGround).toBe(true);
+    expect(run(sim, 4)).toEqual(['crashed']);
+    expect(sim.snapshot()).toMatchObject({ phase: 'crashed', onGround: true });
+
+    expect(run(sim, CRASH_CHOSEN.resetDelay)).toEqual(['backAtStart']);
+    expect(sim.snapshot()).toEqual(createDroneState());
+  });
+
+  it('a short fall that ends gently is reported as hitting the ground, not as a crash', () => {
+    const falling = { ...createFlyingState(0.3), phase: 'motorsOff' as const };
+    const landed = { ...createDroneState(), homeSet: true };
+
+    expect(phaseEvents(falling, landed)).toEqual(['hitGround']);
+  });
+
+  it('a crash, and being put back at the start, are each reported once', () => {
+    const flying = createFlyingState(5);
+    const wreck = { ...createDroneState(), phase: 'crashed' as const };
+
+    expect(phaseEvents(flying, wreck)).toEqual(['crashed']);
+    expect(phaseEvents(wreck, wreck)).toEqual([]);
+    expect(phaseEvents(wreck, createDroneState())).toEqual(['backAtStart']);
+  });
+
+  it('flying into the ground at speed is a crash', () => {
+    const sim = airborne(3);
+
+    expect(run(sim, 4, { pitch: 1, throttle: -1 })).toEqual(['crashed']);
   });
 
   it('reports a change of flight mode once, with the new mode', () => {

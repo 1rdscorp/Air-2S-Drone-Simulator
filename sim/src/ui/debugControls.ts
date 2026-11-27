@@ -30,6 +30,8 @@ export interface DebugActions {
   toggleSound(): void;
   /** Open the flight stick setup. */
   openJoystickSetup(): void;
+  /** Open the list of places to fly. */
+  openWorldMenu(): void;
   isPaused(): boolean;
 }
 
@@ -43,6 +45,7 @@ export interface DebugActions {
  *   V         next camera view
  *   M         sound on / off
  *   J         flight stick setup
+ *   E         places to fly
  *   P         pause / resume
  *   .         one step forward (while paused; hold to keep stepping)
  *   − and =   slower / faster
@@ -88,6 +91,11 @@ export function bindDebugKeys(target: Window, actions: DebugActions): () => void
       case 'KeyJ':
         if (!event.repeat) {
           actions.openJoystickSetup();
+        }
+        break;
+      case 'KeyE':
+        if (!event.repeat) {
+          actions.openWorldMenu();
         }
         break;
       case 'KeyP':

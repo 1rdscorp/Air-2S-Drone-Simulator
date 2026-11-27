@@ -29,8 +29,9 @@ export function isStickCommand(sticks: Sticks): boolean {
 }
 
 /** Automatic take-off is finished when the aircraft is at hover height and has all but stopped climbing. */
-function hasReachedHoverHeight(state: DroneState): boolean {
-  return Math.abs(FLIGHT_PROCEDURE.takeoffHeight - state.y) < 0.05 && Math.abs(state.vy) < 0.15;
+function hasReachedHoverHeight(state: DroneState, ground: number): boolean {
+  const height = state.y - ground;
+  return Math.abs(FLIGHT_PROCEDURE.takeoffHeight - height) < 0.05 && Math.abs(state.vy) < 0.15;
 }
 
 /**
@@ -45,13 +46,17 @@ function hasReachedHoverHeight(state: DroneState): boolean {
  *   idle --stick command, or throttle held down--> motors off
  *   any time in the air --stick command held--> motors off (emergency stop; it falls)
  *
- * Touching the ground while flying leads to idle; that is decided by the flight model.
+ * Touching the ground while flying leads to idle, and hitting something to crashed; both
+ * are decided by the flight model.
+ *
+ * @param ground height of the surface below the aircraft, in metres
  */
 export function updatePhase(
   state: DroneState,
   sticks: Sticks,
   buttons: Readonly<Record<ButtonId, boolean>>,
   dt: number,
+  ground = 0,
 ): void {
   // Buttons act once per press, not for as long as they are held.
   const takeoffPressed = buttons.takeoffLand && !state.takeoffButtonWasDown;
@@ -118,10 +123,10 @@ export function updatePhase(
         state.phase = 'landing';
       } else if (pausePressed) {
         state.phase = 'flying'; // stays at whatever height it has reached
-      } else if (hasReachedHoverHeight(state)) {
+      } else if (hasReachedHoverHeight(state, ground)) {
         state.phase = 'flying';
         state.altitudeHoldActive = true;
-        state.holdY = FLIGHT_PROCEDURE.takeoffHeight;
+        state.holdY = ground + FLIGHT_PROCEDURE.takeoffHeight;
       }
       break;
 
@@ -141,6 +146,10 @@ export function updatePhase(
       } else if (takeoffPressed || pausePressed) {
         state.phase = 'flying';
       }
+      break;
+
+    case 'crashed':
+      // Nothing the pilot does matters until the aircraft is back at the start.
       break;
   }
 }

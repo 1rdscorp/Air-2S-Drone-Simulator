@@ -40,6 +40,10 @@ export function flightMessage(event: FlightEvent): ToastMessage {
       return warning('flight', 'Emergency stop · motors cut');
     case 'hitGround':
       return warning('flight', 'The aircraft hit the ground');
+    case 'crashed':
+      return warning('flight', 'Crashed');
+    case 'backAtStart':
+      return info('flight', 'Back at the start');
     case 'modeChanged': {
       const mode = event.mode ?? 'N';
       return info(

@@ -161,9 +161,10 @@ interface ControlSource {
 // world/ — what every environment must provide
 interface Environment {
   readonly id: 'test' | 'mountains' | 'city' | 'ocean' | 'beach';
-  load(ctx: WorldContext): Promise<void>;
-  update(dt: number, frame: FrameState): void;
-  dispose(): void;                             // free every geometry, texture, light
+  readonly name: string;                       // name shown to the pilot
+  load(ctx: WorldContext): Promise<void>;      // build the scenery under ctx.root
+  update(frame: FrameState): void;             // every drawn frame: simulated time, camera, aircraft
+  dispose(): void;                             // free every geometry, material, texture
   heightAt(x: number, z: number): number;      // ground, roof or water surface
   raycast(origin: Vec3, dir: Vec3, maxDist: number): Hit | null;
   readonly spawn: { position: Vec3; headingDeg: number };
@@ -308,7 +309,7 @@ and add a line to the decision log (section 9) if something changed.
 
 ### Milestone 2 — World system
 
-- [ ] **10 — Environment framework**
+- [x] **10 — Environment framework**
   - Build: `Environment` interface; world manager with loading screen and full cleanup;
     environment picker menu; a flat "Test Field" with a landing pad and a few obstacles;
     collision and crash handling (crash → reset at home).
@@ -551,6 +552,20 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-23 — step 09a — The setup is kept in the browser's storage, one setup for all devices together; if one of its devices is unplugged the stick does not fly at all — with the throttle gone, half a setup would fly without height control. The simulation is paused while the setup screen is open, and no key reaches the aircraft.
 - 2026-11-23 — step 09a — Not done: calibration of end stops and centre (the device's own software does that), buttons for return to home, record and photo (they do nothing yet), and Chrome's way of reporting a hat switch, of which only "up" can be used as a button; in Firefox a hat works in every direction.
 - 2026-11-23 — step 09a — Tested with made-up devices only — no flight stick can be plugged into the build session. Which axis the real stick's thumb control is, and whether its hat arrives as buttons or as axes, is not known; the setup screen is built not to need to know.
+- 2026-11-27 — step 10 — A place to fly is one object with a fixed set of duties: build the scenery, say where the aircraft starts and how the place is lit, answer "how high is the surface here" and "what does this ray hit", and free everything when it is left. Mountains, ocean, beach and city will each be one such object.
+- 2026-11-27 — step 10 — The flight knows the world only as the height of the surface below each spot, obstacles included — simple, fast and exact for terrain, roofs and platforms. The price: nothing can be flown under. A bridge, a pier or an arch needs more than this; decide when the city or the beach asks for one.
+- 2026-11-27 — step 10 — The list of places opens with E or a click on the place's name. All five places are listed from the start; the four that are not built yet are marked so and cannot be chosen, and `?env=` with one of them gives the test field and a note — the pilot sees what is coming, and nothing breaks.
+- 2026-11-27 — step 10 — Changing the place starts a new flight: aircraft at the start of the new place, motors off, messages cleared. The simulation stands still while the list is open and while a place loads. The old place is freed before the new one is built, so the two are never in memory together.
+- 2026-11-27 — step 10 — The test field: ground with a grid of 5 m squares, a landing pad at the start, a cube, a wall, a 30 m tower, a gate of two pillars, a raised platform and three steps with landing marks, and a row of poles. The four straight lines from the start are kept clear, so a first flight straight ahead hits nothing.
+- 2026-11-27 — step 10 — A crash is: coming down faster than 3 m/s, touching a surface while moving sideways faster than 2.5 m/s, or flying into the side of something faster than 0.8 m/s. A slower bump into a wall just stops the aircraft. Chosen values — a real camera drone breaks earlier, but a simulator that punishes every firm landing is no fun to learn on. They are in `CRASH_CHOSEN`.
+- 2026-11-27 — step 10 — After a crash the aircraft falls, lies tipped over for 3 seconds, and is put back at the start of the place with the motors off ("reset at home" in the plan; the start is used, since the home point may be on a roof). There is no damage model.
+- 2026-11-27 — step 10 — A descent by hand is slowed below 7 m, down to 0.5 m/s at the surface, however far the stick is pushed — so an ordinary landing can never be a crash, in the way the real aircraft's landing protection slows the last metres. Above 7 m the full descent speed is unchanged.
+- 2026-11-27 — step 10 — An emergency stop in the air now ends in a crash and a new start, instead of the aircraft simply standing on the ground afterwards (Steps 05 and 06 had left that for this step).
+- 2026-11-27 — step 10 — The aircraft can stand on anything flat. Take-off and hover heights count from the surface below; the display shows the height above the spot where the motors were started, as the real one does.
+- 2026-11-27 — step 10 — "GPU memory stays stable" is checked by a browser test: it loads the place ten times and compares the renderer's counts of geometries and textures. With the cleanup switched off the counts grew on every load, so the test does see a leak. With only one place built, "switching" means loading the test field again; every new place joins that test.
+- 2026-11-27 — step 10 — Obstacles cast no shadows for now — the sun's shadow area is a few metres wide and follows the aircraft, so an obstacle cast a cut-off piece of shadow that travelled along. The aircraft's own shadow still falls on the ground and on obstacles. Full shadows come with Step 17.
+- 2026-11-27 — step 10 — Each place has one fixed lighting (sky colour, haze, sun) until Step 17 brings the time of day. The seed is handed to every place; the test field does not use it.
+- 2026-11-27 — step 10 — Not checked: the frame rate on a real graphics card (the build session draws in software), and whether the crash limits feel right in the hand — both are for the owner to try.
 
 ---
 
