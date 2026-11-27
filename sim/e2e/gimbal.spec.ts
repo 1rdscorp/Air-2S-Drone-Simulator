@@ -14,6 +14,9 @@ const DEG = Math.PI / 180;
 const tiltDeg = (page: Page) =>
   page.evaluate(() => ((window.__sim?.getState().gimbalTilt ?? Number.NaN) * 180) / Math.PI);
 
+/** What the simulator reads from the camera dial right now: -1 (down) to 1 (up). */
+const dial = (page: Page) => page.evaluate(() => window.__sim?.getInput().frame.gimbal);
+
 const camera = (page: Page) => page.evaluate(() => window.__sim?.getCamera());
 
 interface Controls {
@@ -132,14 +135,17 @@ test.describe('gimbal keys (real time)', () => {
 
     await page.keyboard.down('KeyR');
     await expect.poll(() => tiltDeg(page), { timeout: 20_000 }).toBeGreaterThan(afterF + 3);
-    await page.keyboard.up('KeyR');
-    // The keyboard's dial takes a moment to spring back to its middle, and a dial that is
-    // still turned overrules a shortcut. Wait for it, as a hand would, before pressing X.
-    await expect
-      .poll(() => page.evaluate(() => window.__sim?.getInput().frame.gimbal), { timeout: 20_000 })
-      .toBe(0);
+    await expect.poll(() => dial(page), { timeout: 20_000 }).toBe(1);
 
-    await page.keyboard.press('KeyX');
+    // R is let go and X is tapped in the same instant, as a quick hand does. The dial is
+    // then still springing back to its middle when the shortcut arrives; the shortcut
+    // counts all the same, because whatever was done last counts.
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyR' }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX' }));
+      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyX' }));
+    });
+    await page.keyboard.up('KeyR');
     await expect.poll(() => tiltDeg(page), { timeout: 30_000 }).toBeCloseTo(-90, 3);
 
     await page.keyboard.press('KeyZ');

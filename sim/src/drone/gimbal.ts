@@ -28,6 +28,9 @@ export function gimbalUpperLimit(allowUpward: boolean): number {
  *   C2        straight down
  *
  * A shortcut is a quick, smooth move; turning the dial during it takes over again.
+ * Whatever was done last counts: a dial that is turned at the moment a shortcut is
+ * pressed (a finger still on it, or the dial just springing back to its middle) is
+ * overruled by the shortcut, and is listened to again once it has been let go.
  *
  * @param dial dial deflection, -1 (down) to 1 (up)
  * @param allowUpward the setting that lets the camera tilt above level
@@ -42,20 +45,23 @@ export function stepGimbal(
   const lowest = AIR_2S_SPECS.gimbal.tiltMin;
   const highest = gimbalUpperLimit(allowUpward);
 
+  const turned = Number.isFinite(dial) ? clamp(dial, -1, 1) : 0;
+
   // Shortcut buttons act once per press.
   const recentrePressed = buttons.c1 && !state.c1ButtonWasDown;
   const lookDownPressed = buttons.c2 && !state.c2ButtonWasDown;
   state.c1ButtonWasDown = buttons.c1;
   state.c2ButtonWasDown = buttons.c2;
-  if (recentrePressed) {
+  if (recentrePressed || lookDownPressed) {
     state.gimbalMovingToTarget = true;
-    state.gimbalTarget = 0;
-  } else if (lookDownPressed) {
-    state.gimbalMovingToTarget = true;
-    state.gimbalTarget = lowest;
+    state.gimbalTarget = recentrePressed ? 0 : lowest;
+    state.gimbalDialOverruled = turned !== 0; // the shortcut came after the turn
+  }
+  if (turned === 0) {
+    state.gimbalDialOverruled = false; // let go: from now on the dial counts again
   }
 
-  const turn = Number.isFinite(dial) ? clamp(dial, -1, 1) : 0;
+  const turn = state.gimbalDialOverruled ? 0 : turned;
   if (turn !== 0) {
     state.gimbalMovingToTarget = false; // the pilot's hand on the dial wins
   }

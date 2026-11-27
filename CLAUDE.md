@@ -97,9 +97,6 @@ Notes for headless and cloud sessions:
   west) are kept clear for 6 m to either side, so straight test flights hit nothing.
 - A test that flies low, comes down fast or cuts the motors now meets the crash rules:
   see "World" below.
-- From the keyboard, the camera dial takes about a tenth of a second to spring back after
-  R or F is let go, and a dial that is still turned overrules the X and Z shortcuts. A
-  real-time test waits for `getInput().frame.gimbal` to be 0 before pressing them.
 - Some browser tests run in real time (the flight stick setup). Everything more to draw
   makes them slower in the software renderer, so they have a longer time limit; give a
   new real-time test one too rather than a tight one.
@@ -253,6 +250,11 @@ scene is mostly flat sky and ground, so even a clearly different view changes we
 - The camera gimbal is part of the simulation state (`gimbalTilt` in `DroneState`, moved by
   `sim/src/drone/gimbal.ts`). Its tilt is measured against the horizon: 0 is level, −90°
   is straight down. The drone camera view and the model's camera pod both read it.
+- For the camera tilt, whatever was done last counts. Turning the dial takes over from a
+  shortcut (level, straight down). A shortcut pressed while the dial is turned overrules
+  the dial until the dial has been let go (`gimbalDialOverruled`). That matters because a
+  dial is often still turned when a shortcut arrives: from the keyboard it takes about a
+  tenth of a second to spring back after R or F is let go.
 - The flight display is `sim/src/ui/hud.ts`. It only shows numbers that `hudValues`
   (`sim/src/ui/hudValues.ts`) reads off the simulation state, and every value carries a
   `data-hud` name that browser tests read (see `sim/e2e/hud.spec.ts`). The home point and

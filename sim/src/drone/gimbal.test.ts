@@ -319,6 +319,46 @@ describe('gimbal shortcuts', () => {
     expect(state.gimbalTilt / DEG).toBeGreaterThan(-60); // it never got to straight down
   });
 
+  it('counts when the dial is still springing back from a turn', () => {
+    // From the keyboard the dial needs a moment to return to its middle after the key is
+    // let go. A shortcut pressed in that moment must not be lost.
+    const state = run(createFlyingState(50), 1, { gimbal: -1 });
+    expect(state.gimbalTilt / DEG).toBeLessThan(-20);
+
+    run(state, 0.1, { gimbal: -0.2, press: ['c1'] }); // dial on its way back, C1 tapped
+    run(state, 3);
+
+    expect(state.gimbalTilt).toBe(0);
+    expect(state.gimbalMovingToTarget).toBe(false);
+  });
+
+  it('overrules a dial that is held at that moment, until the dial has been let go', () => {
+    const state = tap(createFlyingState(50), 'c2');
+    run(state, 3);
+    run(state, 0.5, { gimbal: 1 }); // dial up: the camera leaves straight down
+    expect(state.gimbalTilt / DEG).toBeGreaterThan(-85);
+
+    // The dial is still held when C2 is pressed again: what was done last counts.
+    run(state, 0.1, { gimbal: 1, press: ['c2'] });
+    run(state, 3, { gimbal: 1 });
+    expect(state.gimbalTilt).toBe(-90 * DEG);
+
+    // Let go and turn again: the dial is back in charge.
+    run(state, 0.1);
+    run(state, 0.5, { gimbal: 1 });
+    expect(state.gimbalTilt / DEG).toBeGreaterThan(-85);
+  });
+
+  it('hands back during the move as well, once an overruled dial was let go and turned anew', () => {
+    const state = run(createFlyingState(50), 0.05, { gimbal: 0.5, press: ['c2'] });
+    run(state, 0.05); // the dial is let go ...
+    run(state, 0.3, { gimbal: 1 }); // ... and turned again while the camera is on its way
+    run(state, 3);
+
+    expect(state.gimbalMovingToTarget).toBe(false);
+    expect(state.gimbalTilt / DEG).toBeGreaterThan(-60); // it never got to straight down
+  });
+
   it('acts once per press, not again while the button is held', () => {
     const state = run(createFlyingState(50), 3, { press: ['c2'] });
     expect(state.gimbalTilt).toBe(-90 * DEG);
