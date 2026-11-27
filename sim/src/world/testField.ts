@@ -161,8 +161,11 @@ function landingMark(x: number, y: number, z: number, radius: number): Group {
   ring.position.y = lift * 2;
   ring.receiveShadow = true;
 
-  // The H: two uprights and a crossbar, as flat slabs.
-  const bar = new BoxGeometry(1, 1, 1);
+  // The H: two uprights and a crossbar. Flat like the rest of the paint: the thin sides of
+  // a slab, seen edge-on, are pulled in front of the paint next to them and show up as
+  // hairlines. The crossbar runs on into the uprights; same paint at the same height
+  // cannot be told apart.
+  const stripe = new PlaneGeometry(1, 1);
   const stroke = radius * 0.14;
   const half = radius * 0.42;
   const parts: [number, number, number, number][] = [
@@ -171,11 +174,12 @@ function landingMark(x: number, y: number, z: number, radius: number): Group {
     [0, 0, half * 1.5, stroke],
   ];
   for (const [px, pz, width, depth] of parts) {
-    const slab = new Mesh(bar, yellow);
-    slab.scale.set(width, lift, depth);
-    slab.position.set(px, lift * 2.5, pz);
-    slab.receiveShadow = true;
-    mark.add(slab);
+    const part = new Mesh(stripe, yellow);
+    part.rotation.x = -Math.PI / 2;
+    part.scale.set(width, depth, 1); // lying flat, the plane's second side runs north-south
+    part.position.set(px, lift * 2, pz);
+    part.receiveShadow = true;
+    mark.add(part);
   }
 
   mark.add(disc, ring);

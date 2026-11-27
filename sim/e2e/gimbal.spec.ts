@@ -133,6 +133,11 @@ test.describe('gimbal keys (real time)', () => {
     await page.keyboard.down('KeyR');
     await expect.poll(() => tiltDeg(page), { timeout: 20_000 }).toBeGreaterThan(afterF + 3);
     await page.keyboard.up('KeyR');
+    // The keyboard's dial takes a moment to spring back to its middle, and a dial that is
+    // still turned overrules a shortcut. Wait for it, as a hand would, before pressing X.
+    await expect
+      .poll(() => page.evaluate(() => window.__sim?.getInput().frame.gimbal), { timeout: 20_000 })
+      .toBe(0);
 
     await page.keyboard.press('KeyX');
     await expect.poll(() => tiltDeg(page), { timeout: 30_000 }).toBeCloseTo(-90, 3);

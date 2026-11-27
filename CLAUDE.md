@@ -97,6 +97,9 @@ Notes for headless and cloud sessions:
   west) are kept clear for 6 m to either side, so straight test flights hit nothing.
 - A test that flies low, comes down fast or cuts the motors now meets the crash rules:
   see "World" below.
+- From the keyboard, the camera dial takes about a tenth of a second to spring back after
+  R or F is let go, and a dial that is still turned overrules the X and Z shortcuts. A
+  real-time test waits for `getInput().frame.gimbal` to be 0 before pressing them.
 - Some browser tests run in real time (the flight stick setup). Everything more to draw
   makes them slower in the software renderer, so they have a longer time limit; give a
   new real-time test one too rather than a tight one.
@@ -158,8 +161,9 @@ Notes for headless and cloud sessions:
   is slowed near the surface (`gentleDescent`), so an ordinary landing is never a crash.
 - `state.groundY` is the surface below the aircraft, `state.homeY` the height of the spot
   where the motors were started. The display shows the height above home.
-- Paint on a surface (a landing mark) is a thin mesh 3 mm above it with a small polygon
-  offset. Do not lay it on one huge triangle: across a triangle kilometres long the depth
+- Paint on a surface (a landing mark) is flat shapes 3 mm above it with a small polygon
+  offset. Never thin slabs: their sides, seen edge-on, are pulled in front of the paint
+  next to them and show as hairlines. Do not lay paint on one huge triangle: across a triangle kilometres long the depth
   is worked out too coarsely and the paint flickers or vanishes. The test field's ground
   is cut into 200 m squares for that reason.
 - Obstacles cast no shadows yet: the sun's shadow area is a few metres wide and follows
