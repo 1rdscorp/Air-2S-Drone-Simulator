@@ -101,7 +101,7 @@ The keyboard acts as two sticks. In stick mode 2, the usual default:
 | K | The stick command (both sticks down and inward). On the ground: starts or stops the motors. Held for 2 seconds in the air: cuts the motors, and the aircraft falls and crashes |
 | R / F | Tilt the camera up / down, between level and straight down |
 | Z | Camera back to level |
-| X | Camera straight down |
+| X | Camera straight down (Z and X also work while R or F is still held: the key pressed last counts) |
 | H, C, B | Return to home, record, photo (shown, but no effect yet) |
 
 There are two ways to take off and to land, as on the real aircraft:

@@ -566,6 +566,7 @@ Add one line per decision: date — step — what was decided — why.
 - 2026-11-27 — step 10 — Obstacles cast no shadows for now — the sun's shadow area is a few metres wide and follows the aircraft, so an obstacle cast a cut-off piece of shadow that travelled along. The aircraft's own shadow still falls on the ground and on obstacles. Full shadows come with Step 17.
 - 2026-11-27 — step 10 — Each place has one fixed lighting (sky colour, haze, sun) until Step 17 brings the time of day. The seed is handed to every place; the test field does not use it.
 - 2026-11-27 — step 10 — Not checked: the frame rate on a real graphics card (the build session draws in software), and whether the crash limits feel right in the hand — both are for the owner to try.
+- 2026-11-27 — step 08 — For the camera tilt, whatever was done last counts: a shortcut (level, straight down) pressed while the dial is turned now overrules the dial until the dial has been let go; turning the dial afterwards takes over as before — until now a turned dial always won, and from the keyboard the dial is still springing back for about a tenth of a second after R or F is let go, so X or Z pressed right away did nothing. Found by a browser test that failed now and then.
 
 ---
 

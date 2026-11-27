@@ -85,6 +85,11 @@ export interface DroneState {
   /** True while a shortcut (recentre, look down) is moving the camera to `gimbalTarget`. */
   gimbalMovingToTarget: boolean;
   gimbalTarget: number;
+  /**
+   * True from a shortcut that was pressed while the dial was turned, until the dial has
+   * been let go: the dial is not listened to meanwhile.
+   */
+  gimbalDialOverruled: boolean;
   /** Whether the two gimbal shortcut buttons (C1, C2) were down in the last step. */
   c1ButtonWasDown: boolean;
   c2ButtonWasDown: boolean;
@@ -157,6 +162,7 @@ export function createDroneState(place: StartPlace = {}): DroneState {
     gimbalRate: 0,
     gimbalMovingToTarget: false,
     gimbalTarget: 0,
+    gimbalDialOverruled: false,
     c1ButtonWasDown: false,
     c2ButtonWasDown: false,
     homeSet: false,
